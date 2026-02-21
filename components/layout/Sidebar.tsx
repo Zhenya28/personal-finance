@@ -9,6 +9,7 @@ import {
   LineChart,
   Target,
   Calculator,
+  ScanLine,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/investments", label: "Inwestycje", icon: LineChart },
   { href: "/goals", label: "Cele", icon: Target },
   { href: "/calculator", label: "Kalkulator", icon: Calculator },
+  { href: "/scan", label: "Skaner AI", icon: ScanLine },
 ];
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
