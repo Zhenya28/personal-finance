@@ -15,9 +15,9 @@ import { INCOME_CATEGORY_COLORS } from "@/lib/utils";
 
 interface IncomeChartData {
   month: string;
-  BASE: number;
-  TIPS: number;
-  BONUS: number;
+  WYPLATA_1: number;
+  WYPLATA_2: number;
+  INNE: number;
 }
 
 export function IncomeChart({ data }: { data: IncomeChartData[] }) {
@@ -50,24 +50,24 @@ export function IncomeChart({ data }: { data: IncomeChartData[] }) {
             />
             <Legend />
             <Bar
-              dataKey="BASE"
-              name="Podstawa"
+              dataKey="WYPLATA_1"
+              name="Wypłata 1"
               stackId="a"
-              fill={INCOME_CATEGORY_COLORS.BASE}
+              fill={INCOME_CATEGORY_COLORS.WYPLATA_1}
               radius={[0, 0, 0, 0]}
             />
             <Bar
-              dataKey="TIPS"
-              name="Napiwki"
+              dataKey="WYPLATA_2"
+              name="Wypłata 2"
               stackId="a"
-              fill={INCOME_CATEGORY_COLORS.TIPS}
+              fill={INCOME_CATEGORY_COLORS.WYPLATA_2}
               radius={[0, 0, 0, 0]}
             />
             <Bar
-              dataKey="BONUS"
-              name="Bonus"
+              dataKey="INNE"
+              name="Inne"
               stackId="a"
-              fill={INCOME_CATEGORY_COLORS.BONUS}
+              fill={INCOME_CATEGORY_COLORS.INNE}
               radius={[4, 4, 0, 0]}
             />
           </BarChart>

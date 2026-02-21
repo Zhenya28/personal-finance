@@ -24,9 +24,9 @@ import { toast } from "sonner";
 type TransactionType = "income" | "expense";
 
 const incomeCategories = [
-  { value: "BASE", label: "Podstawa" },
-  { value: "TIPS", label: "Napiwki" },
-  { value: "BONUS", label: "Bonus" },
+  { value: "WYPLATA_1", label: "Wypłata 1" },
+  { value: "WYPLATA_2", label: "Wypłata 2" },
+  { value: "INNE", label: "Inne" },
 ];
 
 const expenseCategories = [

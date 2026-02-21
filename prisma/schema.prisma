@@ -9,9 +9,9 @@ datasource db {
 }
 
 enum IncomeCategory {
-  BASE
-  TIPS
-  BONUS
+  WYPLATA_1
+  WYPLATA_2
+  INNE
 }
 
 enum ExpenseCategory {

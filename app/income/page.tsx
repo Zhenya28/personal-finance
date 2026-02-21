@@ -77,14 +77,14 @@ export default async function IncomePage({ searchParams }: Props) {
 
     return {
       month: getMonthLabel(m),
-      BASE: monthRecords
-        .filter((i) => i.category === "BASE")
+      WYPLATA_1: monthRecords
+        .filter((i) => i.category === "WYPLATA_1")
         .reduce((sum, i) => sum + i.amount, 0),
-      TIPS: monthRecords
-        .filter((i) => i.category === "TIPS")
+      WYPLATA_2: monthRecords
+        .filter((i) => i.category === "WYPLATA_2")
         .reduce((sum, i) => sum + i.amount, 0),
-      BONUS: monthRecords
-        .filter((i) => i.category === "BONUS")
+      INNE: monthRecords
+        .filter((i) => i.category === "INNE")
         .reduce((sum, i) => sum + i.amount, 0),
     };
   });

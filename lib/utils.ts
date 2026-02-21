@@ -46,9 +46,9 @@ export function getLast6Months(): string[] {
 }
 
 export const INCOME_CATEGORY_LABELS: Record<string, string> = {
-  BASE: "Podstawa",
-  TIPS: "Napiwki",
-  BONUS: "Bonus",
+  WYPLATA_1: "Wypłata 1",
+  WYPLATA_2: "Wypłata 2",
+  INNE: "Inne",
 };
 
 export const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
@@ -68,7 +68,7 @@ export const EXPENSE_CATEGORY_COLORS: Record<string, string> = {
 };
 
 export const INCOME_CATEGORY_COLORS: Record<string, string> = {
-  BASE: "#22c55e",
-  TIPS: "#eab308",
-  BONUS: "#06b6d4",
+  WYPLATA_1: "#22c55e",
+  WYPLATA_2: "#3b82f6",
+  INNE: "#8b5cf6",
 };

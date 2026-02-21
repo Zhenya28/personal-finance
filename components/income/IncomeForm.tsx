@@ -62,9 +62,9 @@ export function IncomeForm() {
                   <SelectValue placeholder="Wybierz" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="BASE">Podstawa</SelectItem>
-                  <SelectItem value="TIPS">Napiwki</SelectItem>
-                  <SelectItem value="BONUS">Bonus</SelectItem>
+                  <SelectItem value="WYPLATA_1">Wypłata 1</SelectItem>
+                  <SelectItem value="WYPLATA_2">Wypłata 2</SelectItem>
+                  <SelectItem value="INNE">Inne</SelectItem>
                 </SelectContent>
               </Select>
             </div>
