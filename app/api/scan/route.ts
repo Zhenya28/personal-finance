@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
 const INCOME_CATEGORIES = ["WYPLATA_1", "WYPLATA_2", "INNE"];
 const EXPENSE_CATEGORIES = [
@@ -110,8 +110,19 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorData = await response.text();
       console.error("Gemini API error:", errorData);
+      
+      let errorMessage = "Błąd API Gemini.";
+      try {
+        const parsed = JSON.parse(errorData);
+        if (parsed.error && parsed.error.message) {
+          errorMessage = `Błąd: ${parsed.error.message}`;
+        }
+      } catch (e) {
+        // ignore
+      }
+
       return NextResponse.json(
-        { error: "Błąd API Gemini. Sprawdź klucz API." },
+        { error: errorMessage },
         { status: 502 }
       );
     }
