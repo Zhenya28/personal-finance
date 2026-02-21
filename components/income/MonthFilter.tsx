@@ -8,13 +8,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getLast6Months, getMonthLabel, getCurrentMonth } from "@/lib/utils";
+import { getMonthLabel, getCurrentMonth } from "@/lib/utils";
+
+// Generate all months for 2026
+function getMonths2026(): string[] {
+  const months: string[] = [];
+  for (let m = 1; m <= 12; m++) {
+    months.push(`2026-${String(m).padStart(2, "0")}`);
+  }
+  return months;
+}
 
 export function MonthFilter() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentMonth = searchParams.get("month") || getCurrentMonth();
-  const months = getLast6Months();
+  const now = getCurrentMonth(); // e.g. "2026-02"
+  const months = getMonths2026();
 
   return (
     <Select
@@ -30,7 +40,7 @@ export function MonthFilter() {
       </SelectTrigger>
       <SelectContent>
         {months.map((m) => (
-          <SelectItem key={m} value={m}>
+          <SelectItem key={m} value={m} disabled={m > now}>
             {getMonthLabel(m)}
           </SelectItem>
         ))}

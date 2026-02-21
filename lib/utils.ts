@@ -38,9 +38,17 @@ export function getMonthLabel(monthStr: string): string {
 export function getLast6Months(): string[] {
   const months: string[] = [];
   const now = new Date();
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push(formatMonth(d));
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+  const startYear = 2026;
+  const startMonth = 0; // January
+
+  for (let y = startYear; y <= currentYear; y++) {
+    const mStart = y === startYear ? startMonth : 0;
+    const mEnd = y === currentYear ? currentMonth : 11;
+    for (let m = mStart; m <= mEnd; m++) {
+      months.push(formatMonth(new Date(y, m, 1)));
+    }
   }
   return months;
 }
