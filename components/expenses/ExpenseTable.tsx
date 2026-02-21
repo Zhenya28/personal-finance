@@ -25,10 +25,8 @@ interface Expense {
 
 export function ExpenseTable({
   data,
-  hourlyRate,
 }: {
   data: Expense[];
-  hourlyRate: number;
 }) {
   async function handleDelete(id: string) {
     try {
@@ -69,9 +67,6 @@ export function ExpenseTable({
             <TableHead>Kategoria</TableHead>
             <TableHead>Opis</TableHead>
             <TableHead className="text-right">Kwota</TableHead>
-            {hourlyRate > 0 && (
-              <TableHead className="text-right">Godziny pracy</TableHead>
-            )}
             <TableHead className="w-20" />
           </TableRow>
         </TableHeader>
@@ -92,14 +87,6 @@ export function ExpenseTable({
               <TableCell className="text-right font-medium text-red-600 dark:text-red-400">
                 {formatPLN(expense.amount)}
               </TableCell>
-              {hourlyRate > 0 && (
-                <TableCell className="text-right text-muted-foreground">
-                  <span className="flex items-center justify-end gap-1">
-                    <Clock className="h-3 w-3" />
-                    {(expense.amount / hourlyRate).toFixed(1)}h
-                  </span>
-                </TableCell>
-              )}
               <TableCell>
                 <div className="flex gap-1">
                   <Button

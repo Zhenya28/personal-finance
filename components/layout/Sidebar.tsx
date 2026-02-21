@@ -8,6 +8,7 @@ import {
   TrendingDown,
   LineChart,
   Target,
+  Calculator,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/expenses", label: "Wydatki", icon: TrendingDown },
   { href: "/investments", label: "Inwestycje", icon: LineChart },
   { href: "/goals", label: "Cele", icon: Target },
+  { href: "/calculator", label: "Kalkulator", icon: Calculator },
 ];
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
