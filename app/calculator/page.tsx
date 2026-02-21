@@ -80,16 +80,15 @@ export default function CalculatorPage() {
     const totalOrders = wdOrders + weOrders;
     const tipsVal = parseFloat(tips) || 0;
 
-    // Hourly components (split per period)
+    // Hourly base (split per period)
     const baseP1 = h1 * HOURLY_RATE;
     const baseP2 = h2 * HOURLY_RATE;
-    const laundryP1 = h1 * LAUNDRY_RATE;
-    const laundryP2 = h2 * LAUNDRY_RATE;
 
-    // Phone bonus (based on total hours, proportionally split)
+    // Laundry — all goes to Wypłata 1, calculated on total hours
+    const totalLaundry = totalHours * LAUNDRY_RATE;
+
+    // Phone bonus — all goes to Wypłata 1, calculated on total hours
     const totalPhoneBonus = calcPhoneBonus(totalHours);
-    const phoneBonusP1 = totalHours > 0 ? totalPhoneBonus * (h1 / totalHours) : 0;
-    const phoneBonusP2 = totalHours > 0 ? totalPhoneBonus * (h2 / totalHours) : 0;
 
     // Km bonus (all in Wypłata 1)
     const kmBonus = km * KM_RATE;
@@ -99,18 +98,17 @@ export default function CalculatorPage() {
     const weMultiplier = getMultiplier(totalOrders, WEEKEND_MULTIPLIERS);
     const orderBonus = wdOrders * wdMultiplier + weOrders * weMultiplier;
 
-    // Wypłata 2 (25th) = hours from 1-15 only
-    const wyplata2 = baseP1 + laundryP1 + phoneBonusP1;
+    // Wypłata 2 (25th) = only hourly base from 1-15
+    const wyplata2 = baseP1;
 
-    // Wypłata 1 (10th) = hours from 16-31 + all bonuses + tips
-    const wyplata1 = baseP2 + laundryP2 + phoneBonusP2 + kmBonus + orderBonus + tipsVal;
+    // Wypłata 1 (10th) = hourly base from 16-31 + all bonuses + tips
+    const wyplata1 = baseP2 + totalLaundry + totalPhoneBonus + kmBonus + orderBonus + tipsVal;
 
     const total = wyplata1 + wyplata2;
 
     return {
       h1, h2, totalHours, km, wdOrders, weOrders, totalOrders, tipsVal,
-      baseP1, baseP2, laundryP1, laundryP2,
-      phoneBonusP1, phoneBonusP2, totalPhoneBonus,
+      baseP1, baseP2, totalLaundry, totalPhoneBonus,
       kmBonus, orderBonus, wdMultiplier, weMultiplier,
       wyplata1, wyplata2, total,
     };
@@ -255,8 +253,6 @@ export default function CalculatorPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <Row label={`Godziny (${calc.h1}h × ${HOURLY_RATE} zł)`} value={calc.baseP1} />
-            <Row label={`Pranie (${calc.h1}h × ${LAUNDRY_RATE} zł)`} value={calc.laundryP1} />
-            <Row label="Bonus telefon" value={calc.phoneBonusP1} />
             <Separator />
             <div className="flex justify-between font-bold text-lg pt-1">
               <span>Razem</span>
@@ -278,8 +274,8 @@ export default function CalculatorPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <Row label={`Godziny (${calc.h2}h × ${HOURLY_RATE} zł)`} value={calc.baseP2} />
-            <Row label={`Pranie (${calc.h2}h × ${LAUNDRY_RATE} zł)`} value={calc.laundryP2} />
-            <Row label="Bonus telefon" value={calc.phoneBonusP2} />
+            <Row label={`Pranie (${calc.totalHours}h × ${LAUNDRY_RATE} zł)`} value={calc.totalLaundry} />
+            <Row label="Bonus telefon" value={calc.totalPhoneBonus} />
             <Row label={`Kilometry (${calc.km} km × ${KM_RATE} zł)`} value={calc.kmBonus} />
             <Row
               label={`Bonusy zamówień`}
@@ -322,7 +318,7 @@ export default function CalculatorPage() {
             <p className="text-xs font-medium text-muted-foreground mb-2">Składniki</p>
             <div className="space-y-1.5">
               <MiniRow label="Godziny" value={calc.baseP1 + calc.baseP2} />
-              <MiniRow label="Pranie" value={calc.laundryP1 + calc.laundryP2} />
+              <MiniRow label="Pranie" value={calc.totalLaundry} />
               <MiniRow label="Bonus telefon" value={calc.totalPhoneBonus} />
               <MiniRow label="Kilometry" value={calc.kmBonus} />
               <MiniRow label="Bonusy zamówień" value={calc.orderBonus} />
