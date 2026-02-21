@@ -30,9 +30,11 @@ const incomeCategories = [
 ];
 
 const expenseCategories = [
-  { value: "FOOD", label: "Jedzenie" },
+  { value: "ZAKUPY", label: "Zakupy spożywcze" },
+  { value: "RESTAURACJE", label: "Restauracje" },
   { value: "TRANSPORT", label: "Transport" },
   { value: "SUBSCRIPTIONS", label: "Subskrypcje" },
+  { value: "MIESZKANIE", label: "Mieszkanie" },
   { value: "FUN", label: "Rozrywka" },
   { value: "OTHER", label: "Inne" },
 ];

@@ -52,17 +52,21 @@ export const INCOME_CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
-  FOOD: "Jedzenie",
+  ZAKUPY: "Zakupy spożywcze",
+  RESTAURACJE: "Restauracje",
   TRANSPORT: "Transport",
   SUBSCRIPTIONS: "Subskrypcje",
+  MIESZKANIE: "Mieszkanie",
   FUN: "Rozrywka",
   OTHER: "Inne",
 };
 
 export const EXPENSE_CATEGORY_COLORS: Record<string, string> = {
-  FOOD: "#f97316",
+  ZAKUPY: "#f97316",
+  RESTAURACJE: "#ef4444",
   TRANSPORT: "#3b82f6",
   SUBSCRIPTIONS: "#8b5cf6",
+  MIESZKANIE: "#14b8a6",
   FUN: "#ec4899",
   OTHER: "#6b7280",
 };

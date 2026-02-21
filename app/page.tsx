@@ -69,14 +69,14 @@ async function getOverviewData() {
     prisma.expense.aggregate({
       _sum: { amount: true },
       where: {
-        category: "FOOD",
+        category: { in: ["ZAKUPY", "RESTAURACJE"] },
         date: { gte: startOfMonth, lte: endOfMonth },
       },
     }),
     prisma.expense.aggregate({
       _sum: { amount: true },
       where: {
-        category: "FOOD",
+        category: { in: ["ZAKUPY", "RESTAURACJE"] },
         date: { gte: prevMonthStart, lte: prevMonthEnd },
       },
     }),

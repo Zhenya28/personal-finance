@@ -15,9 +15,11 @@ enum IncomeCategory {
 }
 
 enum ExpenseCategory {
-  FOOD
+  ZAKUPY
+  RESTAURACJE
   TRANSPORT
   SUBSCRIPTIONS
+  MIESZKANIE
   FUN
   OTHER
 }
