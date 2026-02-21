@@ -4,29 +4,35 @@ import { GoalForm } from "@/components/goals/GoalForm";
 import { GoalCard } from "@/components/goals/GoalCard";
 import { EmergencyFund } from "@/components/goals/EmergencyFund";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function GoalsPage() {
-  const goals = await prisma.savingsGoal.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  // Calculate the full date range for the last 6 months
+  const last6 = getLast6Months();
+  const oldestMonth = last6[0].split("-").map(Number);
+  const sixMonthsAgo = new Date(oldestMonth[0], oldestMonth[1] - 1, 1);
+  const now = new Date();
+
+  // Fetch all data in parallel — 2 queries instead of 7
+  const [goals, allExpenses6m] = await Promise.all([
+    prisma.savingsGoal.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.expense.findMany({
+      where: { date: { gte: sixMonthsAgo, lte: now } },
+      select: { amount: true, date: true },
+    }),
+  ]);
 
   const totalSavings = goals.reduce((sum, g) => sum + g.currentAmount, 0);
 
-  // Average monthly expenses (last 6 months)
-  const last6 = getLast6Months();
-  const monthlyExpenses = await Promise.all(
-    last6.map(async (m) => {
-      const [y, mo] = m.split("-").map(Number);
-      const start = new Date(y, mo - 1, 1);
-      const end = new Date(y, mo, 0, 23, 59, 59);
-      const agg = await prisma.expense.aggregate({
-        _sum: { amount: true },
-        where: { date: { gte: start, lte: end } },
-      });
-      return agg._sum.amount || 0;
-    })
-  );
+  // Calculate average monthly expenses from already-fetched data (no extra queries)
+  const monthlyExpenses = last6.map((m) => {
+    const [y, mo] = m.split("-").map(Number);
+    const start = new Date(y, mo - 1, 1);
+    const end = new Date(y, mo, 0, 23, 59, 59);
+    return allExpenses6m
+      .filter((e) => e.date >= start && e.date <= end)
+      .reduce((sum, e) => sum + e.amount, 0);
+  });
 
   const nonZero = monthlyExpenses.filter((e) => e > 0);
   const avgMonthlyExpenses =

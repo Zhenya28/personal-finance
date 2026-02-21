@@ -13,7 +13,7 @@ import { MonthFilter } from "@/components/income/MonthFilter";
 import { DollarSign, TrendingUp, Award } from "lucide-react";
 import { Suspense } from "react";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 interface Props {
   searchParams: Promise<{ month?: string }>;
@@ -26,27 +26,35 @@ export default async function IncomePage({ searchParams }: Props) {
   const startOfMonth = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
 
-  const incomes = await prisma.income.findMany({
-    where: { date: { gte: startOfMonth, lte: endOfMonth } },
-    orderBy: { date: "desc" },
-  });
+  // Calculate the full date range for the last 6 months
+  const last6 = getLast6Months();
+  const oldestMonth = last6[0].split("-").map(Number);
+  const sixMonthsAgo = new Date(oldestMonth[0], oldestMonth[1] - 1, 1);
+
+  // Fetch ALL data in parallel — 2 queries instead of 12+
+  const [incomes, allIncomes6m] = await Promise.all([
+    prisma.income.findMany({
+      where: { date: { gte: startOfMonth, lte: endOfMonth } },
+      orderBy: { date: "desc" },
+    }),
+    prisma.income.findMany({
+      where: { date: { gte: sixMonthsAgo, lte: endOfMonth } },
+      select: { amount: true, date: true, category: true },
+    }),
+  ]);
 
   const totalThisMonth = incomes.reduce((sum, i) => sum + i.amount, 0);
 
-  // Average monthly income (last 6 months)
-  const last6 = getLast6Months();
-  const monthlyTotals = await Promise.all(
-    last6.map(async (m) => {
-      const [y, mo] = m.split("-").map(Number);
-      const start = new Date(y, mo - 1, 1);
-      const end = new Date(y, mo, 0, 23, 59, 59);
-      const agg = await prisma.income.aggregate({
-        _sum: { amount: true },
-        where: { date: { gte: start, lte: end } },
-      });
-      return { month: m, total: agg._sum.amount || 0 };
-    })
-  );
+  // Calculate monthly totals from already-fetched data (no extra queries)
+  const monthlyTotals = last6.map((m) => {
+    const [y, mo] = m.split("-").map(Number);
+    const start = new Date(y, mo - 1, 1);
+    const end = new Date(y, mo, 0, 23, 59, 59);
+    const total = allIncomes6m
+      .filter((i) => i.date >= start && i.date <= end)
+      .reduce((sum, i) => sum + i.amount, 0);
+    return { month: m, total };
+  });
 
   const nonZeroMonths = monthlyTotals.filter((m) => m.total > 0);
   const avgMonthly =
@@ -58,27 +66,28 @@ export default async function IncomePage({ searchParams }: Props) {
     monthlyTotals[0]
   );
 
-  // Chart data - income per category per month
-  const chartData = await Promise.all(
-    last6.map(async (m) => {
-      const [y, mo] = m.split("-").map(Number);
-      const start = new Date(y, mo - 1, 1);
-      const end = new Date(y, mo, 0, 23, 59, 59);
+  // Chart data — computed from already-fetched records (no extra queries)
+  const chartData = last6.map((m) => {
+    const [y, mo] = m.split("-").map(Number);
+    const start = new Date(y, mo - 1, 1);
+    const end = new Date(y, mo, 0, 23, 59, 59);
+    const monthRecords = allIncomes6m.filter(
+      (i) => i.date >= start && i.date <= end
+    );
 
-      const grouped = await prisma.income.groupBy({
-        by: ["category"],
-        _sum: { amount: true },
-        where: { date: { gte: start, lte: end } },
-      });
-
-      return {
-        month: getMonthLabel(m),
-        BASE: grouped.find((g) => g.category === "BASE")?._sum.amount || 0,
-        TIPS: grouped.find((g) => g.category === "TIPS")?._sum.amount || 0,
-        BONUS: grouped.find((g) => g.category === "BONUS")?._sum.amount || 0,
-      };
-    })
-  );
+    return {
+      month: getMonthLabel(m),
+      BASE: monthRecords
+        .filter((i) => i.category === "BASE")
+        .reduce((sum, i) => sum + i.amount, 0),
+      TIPS: monthRecords
+        .filter((i) => i.category === "TIPS")
+        .reduce((sum, i) => sum + i.amount, 0),
+      BONUS: monthRecords
+        .filter((i) => i.category === "BONUS")
+        .reduce((sum, i) => sum + i.amount, 0),
+    };
+  });
 
   return (
     <div className="space-y-6">

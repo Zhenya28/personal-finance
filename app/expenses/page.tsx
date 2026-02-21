@@ -8,7 +8,7 @@ import { HourlyRateSettings } from "@/components/expenses/HourlyRateSettings";
 import { MonthFilter } from "@/components/income/MonthFilter";
 import { Suspense } from "react";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 interface Props {
   searchParams: Promise<{ month?: string }>;
@@ -21,24 +21,26 @@ export default async function ExpensesPage({ searchParams }: Props) {
   const startOfMonth = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
 
-  const expenses = await prisma.expense.findMany({
-    where: { date: { gte: startOfMonth, lte: endOfMonth } },
-    orderBy: { date: "desc" },
-  });
+  // Fetch ALL data in parallel
+  const [expenses, budgetLimits, expensesByCategory, settings] =
+    await Promise.all([
+      prisma.expense.findMany({
+        where: { date: { gte: startOfMonth, lte: endOfMonth } },
+        orderBy: { date: "desc" },
+      }),
+      prisma.budgetLimit.findMany({
+        where: { month: selectedMonth },
+      }),
+      prisma.expense.groupBy({
+        by: ["category"],
+        _sum: { amount: true },
+        where: { date: { gte: startOfMonth, lte: endOfMonth } },
+      }),
+      prisma.settings.findUnique({
+        where: { id: "default" },
+      }),
+    ]);
 
-  const budgetLimits = await prisma.budgetLimit.findMany({
-    where: { month: selectedMonth },
-  });
-
-  const expensesByCategory = await prisma.expense.groupBy({
-    by: ["category"],
-    _sum: { amount: true },
-    where: { date: { gte: startOfMonth, lte: endOfMonth } },
-  });
-
-  const settings = await prisma.settings.findUnique({
-    where: { id: "default" },
-  });
   const hourlyRate = settings?.hourlyRate || 0;
 
   // Budget data for progress bars

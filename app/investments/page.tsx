@@ -7,14 +7,13 @@ import { PortfolioChart } from "@/components/investments/PortfolioChart";
 import { fetchVWCEPrice } from "@/actions/investments";
 import { Wallet, TrendingUp, TrendingDown, Calculator } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function InvestmentsPage() {
-  const investments = await prisma.investment.findMany({
-    orderBy: { date: "desc" },
-  });
-
-  const currentPrice = await fetchVWCEPrice();
+  const [investments, currentPrice] = await Promise.all([
+    prisma.investment.findMany({ orderBy: { date: "desc" } }),
+    fetchVWCEPrice(),
+  ]);
 
   const totalUnits = investments.reduce((sum, inv) => sum + inv.units, 0);
   const totalInvested = investments.reduce(

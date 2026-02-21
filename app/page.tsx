@@ -18,7 +18,7 @@ import {
   Percent,
 } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 async function getOverviewData() {
   const currentMonth = getCurrentMonth();
@@ -29,51 +29,82 @@ async function getOverviewData() {
   const prevMonthStart = new Date(year, month - 2, 1);
   const prevMonthEnd = new Date(year, month - 1, 0, 23, 59, 59);
 
-  // Fetch all data in parallel
-  const incomeThisMonth = await prisma.income.aggregate({
-    _sum: { amount: true },
-    where: { date: { gte: startOfMonth, lte: endOfMonth } },
-  });
-  const expensesThisMonth = await prisma.expense.aggregate({
-    _sum: { amount: true },
-    where: { date: { gte: startOfMonth, lte: endOfMonth } },
-  });
-  const incomePrevMonth = await prisma.income.aggregate({
-    _sum: { amount: true },
-    where: { date: { gte: prevMonthStart, lte: prevMonthEnd } },
-  });
-  const investments: { id: string; ticker: string; units: number; pricePerUnit: number; commission: number; date: Date; createdAt: Date }[] = await prisma.investment.findMany();
-  const savingsGoals: { id: string; name: string; targetAmount: number; currentAmount: number; deadline: Date | null; createdAt: Date }[] = await prisma.savingsGoal.findMany();
-  const checkins = await prisma.dailyCheckin.findMany({ orderBy: { date: "desc" } });
-  const foodThisMonthAgg = await prisma.expense.aggregate({
-    _sum: { amount: true },
-    where: {
-      category: "FOOD",
-      date: { gte: startOfMonth, lte: endOfMonth },
-    },
-  });
-  const foodPrevMonthAgg = await prisma.expense.aggregate({
-    _sum: { amount: true },
-    where: {
-      category: "FOOD",
-      date: { gte: prevMonthStart, lte: prevMonthEnd },
-    },
-  });
-  const expensesByCategory = await prisma.expense.groupBy({
-    by: ["category"],
-    _sum: { amount: true },
-    where: { date: { gte: startOfMonth, lte: endOfMonth } },
-  });
-  const budgetLimits = await prisma.budgetLimit.findMany({
-    where: { month: currentMonth },
-  });
+  // Calculate the date range for the last 6 months
+  const last6 = getLast6Months();
+  const oldestMonth = last6[0].split("-").map(Number);
+  const sixMonthsAgo = new Date(oldestMonth[0], oldestMonth[1] - 1, 1);
+
+  // Fetch ALL data in parallel — single round-trip per query
+  const [
+    incomeThisMonth,
+    expensesThisMonth,
+    incomePrevMonth,
+    investments,
+    savingsGoals,
+    checkins,
+    foodThisMonthAgg,
+    foodPrevMonthAgg,
+    expensesByCategory,
+    budgetLimits,
+    currentPrice,
+    // For cashflow chart — fetch all income & expenses in 6-month range at once
+    allIncomes6m,
+    allExpenses6m,
+  ] = await Promise.all([
+    prisma.income.aggregate({
+      _sum: { amount: true },
+      where: { date: { gte: startOfMonth, lte: endOfMonth } },
+    }),
+    prisma.expense.aggregate({
+      _sum: { amount: true },
+      where: { date: { gte: startOfMonth, lte: endOfMonth } },
+    }),
+    prisma.income.aggregate({
+      _sum: { amount: true },
+      where: { date: { gte: prevMonthStart, lte: prevMonthEnd } },
+    }),
+    prisma.investment.findMany(),
+    prisma.savingsGoal.findMany(),
+    prisma.dailyCheckin.findMany({ orderBy: { date: "desc" }, take: 60 }),
+    prisma.expense.aggregate({
+      _sum: { amount: true },
+      where: {
+        category: "FOOD",
+        date: { gte: startOfMonth, lte: endOfMonth },
+      },
+    }),
+    prisma.expense.aggregate({
+      _sum: { amount: true },
+      where: {
+        category: "FOOD",
+        date: { gte: prevMonthStart, lte: prevMonthEnd },
+      },
+    }),
+    prisma.expense.groupBy({
+      by: ["category"],
+      _sum: { amount: true },
+      where: { date: { gte: startOfMonth, lte: endOfMonth } },
+    }),
+    prisma.budgetLimit.findMany({
+      where: { month: currentMonth },
+    }),
+    fetchVWCEPrice(),
+    // Fetch raw records for the 6-month range instead of 12 separate aggregate queries
+    prisma.income.findMany({
+      where: { date: { gte: sixMonthsAgo, lte: endOfMonth } },
+      select: { amount: true, date: true },
+    }),
+    prisma.expense.findMany({
+      where: { date: { gte: sixMonthsAgo, lte: endOfMonth } },
+      select: { amount: true, date: true },
+    }),
+  ]);
 
   const totalIncome = incomeThisMonth._sum.amount || 0;
   const totalExpenses = expensesThisMonth._sum.amount || 0;
   const prevIncome = incomePrevMonth._sum.amount || 0;
   const netBalance = totalIncome - totalExpenses;
 
-  const currentPrice = await fetchVWCEPrice();
   const totalUnits = investments.reduce((sum, inv) => sum + inv.units, 0);
   const totalInvested = investments.reduce(
     (sum, inv) => sum + inv.units * inv.pricePerUnit + inv.commission,
@@ -129,30 +160,25 @@ async function getOverviewData() {
     : 0;
   const monthlyScore = budgetPoints + savingsPoints + investmentPoints;
 
-  // Cashflow chart data
-  const last6 = getLast6Months();
-  const cashflowData = await Promise.all(
-    last6.map(async (m) => {
-      const [y, mo] = m.split("-").map(Number);
-      const start = new Date(y, mo - 1, 1);
-      const end = new Date(y, mo, 0, 23, 59, 59);
+  // Cashflow chart data — computed from already-fetched records (no extra queries)
+  const cashflowData = last6.map((m) => {
+    const [y, mo] = m.split("-").map(Number);
+    const start = new Date(y, mo - 1, 1);
+    const end = new Date(y, mo, 0, 23, 59, 59);
 
-      const inc = await prisma.income.aggregate({
-        _sum: { amount: true },
-        where: { date: { gte: start, lte: end } },
-      });
-      const exp = await prisma.expense.aggregate({
-        _sum: { amount: true },
-        where: { date: { gte: start, lte: end } },
-      });
+    const incomeSum = allIncomes6m
+      .filter((i) => i.date >= start && i.date <= end)
+      .reduce((sum, i) => sum + i.amount, 0);
+    const expenseSum = allExpenses6m
+      .filter((e) => e.date >= start && e.date <= end)
+      .reduce((sum, e) => sum + e.amount, 0);
 
-      return {
-        month: getMonthLabel(m),
-        income: inc._sum.amount || 0,
-        expenses: exp._sum.amount || 0,
-      };
-    })
-  );
+    return {
+      month: getMonthLabel(m),
+      income: incomeSum,
+      expenses: expenseSum,
+    };
+  });
 
   const pieData = expensesByCategory.map((e) => ({
     category: e.category,
