@@ -89,7 +89,10 @@ export function ExpenseTable({ data }: { data: Expense[] }) {
           </Select>
           {categoryFilter !== ALL && (
             <span className="text-xs text-muted-foreground">
-              {filtered.length} z {data.length}
+              {filtered.length} z {data.length} · Suma:{" "}
+              <span className="font-semibold text-red-600 dark:text-red-400">
+                {formatPLN(filtered.reduce((s, e) => s + e.amount, 0))}
+              </span>
             </span>
           )}
         </div>
