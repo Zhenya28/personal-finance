@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn, formatPLN } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { formatPLN } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import {
   Clock,
   Bike,
@@ -15,6 +14,10 @@ import {
   Calculator,
   CalendarDays,
   Coins,
+  Smartphone,
+  Shirt,
+  Zap,
+  HandCoins,
 } from "lucide-react";
 
 // --- CONSTANTS ---
@@ -24,7 +27,6 @@ const PHONE_RATE_UNDER_40 = 0.62;
 const PHONE_FLAT_OVER_40 = 25;
 const KM_RATE = 0.55;
 
-// Order bonus multipliers by total monthly orders
 const WEEKDAY_MULTIPLIERS = [
   { min: 0, max: 49, multiplier: 0 },
   { min: 50, max: 124, multiplier: 1 },
@@ -41,6 +43,15 @@ const WEEKEND_MULTIPLIERS = [
   { min: 250, max: 399, multiplier: 3 },
   { min: 400, max: 549, multiplier: 4 },
   { min: 550, max: Infinity, multiplier: 5 },
+];
+
+const ORDER_TIERS = [
+  { range: "0-49", min: 0, wd: 0, we: 0 },
+  { range: "50-124", min: 50, wd: 1, we: 1 },
+  { range: "125-249", min: 125, wd: 1, we: 2 },
+  { range: "250-399", min: 250, wd: 1.5, we: 3 },
+  { range: "400-549", min: 400, wd: 2, we: 4 },
+  { range: "550+", min: 550, wd: 2.5, we: 5 },
 ];
 
 function getMultiplier(
@@ -61,10 +72,17 @@ function calcPhoneBonus(hours: number): number {
   return PHONE_FLAT_OVER_40;
 }
 
+function getActiveTierIndex(totalOrders: number): number {
+  for (let i = ORDER_TIERS.length - 1; i >= 0; i--) {
+    if (totalOrders >= ORDER_TIERS[i].min) return i;
+  }
+  return 0;
+}
+
 // --- COMPONENT ---
 export default function CalculatorPage() {
-  const [hoursP1, setHoursP1] = useState(""); // period 1-15 (Wypłata 2)
-  const [hoursP2, setHoursP2] = useState(""); // period 16-31 (Wypłata 1)
+  const [hoursP1, setHoursP1] = useState("");
+  const [hoursP2, setHoursP2] = useState("");
   const [totalKm, setTotalKm] = useState("");
   const [weekdayOrders, setWeekdayOrders] = useState("");
   const [weekendOrders, setWeekendOrders] = useState("");
@@ -80,306 +98,415 @@ export default function CalculatorPage() {
     const totalOrders = wdOrders + weOrders;
     const tipsVal = parseFloat(tips) || 0;
 
-    // Hourly base (split per period)
     const baseP1 = h1 * HOURLY_RATE;
     const baseP2 = h2 * HOURLY_RATE;
-
-    // Laundry — all goes to Wypłata 1, calculated on total hours
     const totalLaundry = totalHours * LAUNDRY_RATE;
-
-    // Phone bonus — all goes to Wypłata 1, calculated on total hours
     const totalPhoneBonus = calcPhoneBonus(totalHours);
-
-    // Km bonus (all in Wypłata 1)
     const kmBonus = km * KM_RATE;
 
-    // Order bonus (all in Wypłata 1)
     const wdMultiplier = getMultiplier(totalOrders, WEEKDAY_MULTIPLIERS);
     const weMultiplier = getMultiplier(totalOrders, WEEKEND_MULTIPLIERS);
     const orderBonus = wdOrders * wdMultiplier + weOrders * weMultiplier;
 
-    // Wypłata 2 (25th) = only hourly base from 1-15
     const wyplata2 = baseP1;
-
-    // Wypłata 1 (10th) = hourly base from 16-31 + all bonuses + tips
-    const wyplata1 = baseP2 + totalLaundry + totalPhoneBonus + kmBonus + orderBonus + tipsVal;
-
+    const wyplata1 =
+      baseP2 + totalLaundry + totalPhoneBonus + kmBonus + orderBonus + tipsVal;
     const total = wyplata1 + wyplata2;
 
     return {
-      h1, h2, totalHours, km, wdOrders, weOrders, totalOrders, tipsVal,
-      baseP1, baseP2, totalLaundry, totalPhoneBonus,
-      kmBonus, orderBonus, wdMultiplier, weMultiplier,
-      wyplata1, wyplata2, total,
+      h1,
+      h2,
+      totalHours,
+      km,
+      wdOrders,
+      weOrders,
+      totalOrders,
+      tipsVal,
+      baseP1,
+      baseP2,
+      totalLaundry,
+      totalPhoneBonus,
+      kmBonus,
+      orderBonus,
+      wdMultiplier,
+      weMultiplier,
+      wyplata1,
+      wyplata2,
+      total,
     };
   }, [hoursP1, hoursP2, totalKm, weekdayOrders, weekendOrders, tips]);
 
+  const activeTier = getActiveTierIndex(calc.totalOrders);
+
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-        <Calculator className="h-6 w-6" />
-        Kalkulator Wypłat
-      </h2>
-
-      {/* Input Section */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Hours */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="h-4 w-4 text-blue-500" />
-              Godziny pracy
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="h1" className="text-xs text-muted-foreground">
-                  Okres 1-15 → Wypłata 2 (25.)
-                </Label>
-                <Input
-                  id="h1"
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  placeholder="0"
-                  value={hoursP1}
-                  onChange={(e) => setHoursP1(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="h2" className="text-xs text-muted-foreground">
-                  Okres 16-31 → Wypłata 1 (10.)
-                </Label>
-                <Input
-                  id="h2"
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  placeholder="0"
-                  value={hoursP2}
-                  onChange={(e) => setHoursP2(e.target.value)}
-                />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Łącznie: <strong>{calc.totalHours}h</strong> •
-              Stawka: {HOURLY_RATE} zł/h + {LAUNDRY_RATE} zł/h (pranie)
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Km + Orders */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Bike className="h-4 w-4 text-green-500" />
-              Kilometry i zamówienia
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="km" className="text-xs text-muted-foreground">
-                Kilometry (rower — {KM_RATE} zł/km)
-              </Label>
-              <Input
-                id="km"
-                type="number"
-                step="0.1"
-                min="0"
-                placeholder="0"
-                value={totalKm}
-                onChange={(e) => setTotalKm(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="wd" className="text-xs text-muted-foreground">
-                  Zamówienia pon-czw
-                </Label>
-                <Input
-                  id="wd"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={weekdayOrders}
-                  onChange={(e) => setWeekdayOrders(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="we" className="text-xs text-muted-foreground">
-                  Zamówienia pt-ndz
-                </Label>
-                <Input
-                  id="we"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={weekendOrders}
-                  onChange={(e) => setWeekendOrders(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tips" className="text-xs text-muted-foreground">
-                Napiwki (cały miesiąc)
-              </Label>
-              <Input
-                id="tips"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0"
-                value={tips}
-                onChange={(e) => setTips(e.target.value)}
-              />
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-8 max-w-5xl mx-auto">
+      {/* Page header */}
+      <div>
+        <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10">
+            <Calculator className="h-5 w-5 text-primary" />
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight">
+            Kalkulator Wyplat
+          </h2>
+        </div>
+        <p className="text-sm text-muted-foreground ml-12">
+          Oblicz wyplate na podstawie godzin, zamowien i bonusow
+        </p>
       </div>
 
-      {/* Results */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Wypłata 2 — 25th */}
-        <Card className="border-blue-200 dark:border-blue-900">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-blue-500" />
-              Wypłata 2 — 25 dnia
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Godziny z okresu 1-15 ({calc.h1}h)
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Row label={`Godziny (${calc.h1}h × ${HOURLY_RATE} zł)`} value={calc.baseP1} />
-            <Separator />
-            <div className="flex justify-between font-bold text-lg pt-1">
-              <span>Razem</span>
-              <span className="text-blue-600">{formatPLN(calc.wyplata2)}</span>
+      {/* Hero summary cards */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <SummaryCard
+          label="Wyplata 2"
+          sublabel="25 dnia"
+          value={calc.wyplata2}
+          icon={CalendarDays}
+          color="blue"
+        />
+        <SummaryCard
+          label="Wyplata 1"
+          sublabel="10 dnia"
+          value={calc.wyplata1}
+          icon={Banknote}
+          color="emerald"
+        />
+        <SummaryCard
+          label="Lacznie"
+          sublabel="caly miesiac"
+          value={calc.total}
+          icon={Coins}
+          color="violet"
+          highlight
+        />
+      </div>
+
+      {/* Input section */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Hours card */}
+        <Card className="overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
+          <CardContent className="pt-5 space-y-5">
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
+                <Clock className="h-4 w-4 text-blue-500" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Godziny pracy</h3>
+                <p className="text-xs text-muted-foreground">
+                  Stawka: {HOURLY_RATE} zl/h
+                </p>
+              </div>
+              {calc.totalHours > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="ml-auto text-xs font-normal"
+                >
+                  {calc.totalHours}h lacznie
+                </Badge>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <InputField
+                id="h1"
+                label="Okres 1-15"
+                hint="Wyplata 2 (25.)"
+                type="number"
+                step="0.5"
+                min="0"
+                placeholder="0"
+                value={hoursP1}
+                onChange={setHoursP1}
+                suffix="h"
+              />
+              <InputField
+                id="h2"
+                label="Okres 16-31"
+                hint="Wyplata 1 (10.)"
+                type="number"
+                step="0.5"
+                min="0"
+                placeholder="0"
+                value={hoursP2}
+                onChange={setHoursP2}
+                suffix="h"
+              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Wypłata 1 — 10th */}
-        <Card className="border-green-200 dark:border-green-900">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Banknote className="h-4 w-4 text-green-500" />
-              Wypłata 1 — 10 dnia
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Godziny 16-31 ({calc.h2}h) + bonusy + napiwki
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Row label={`Godziny (${calc.h2}h × ${HOURLY_RATE} zł)`} value={calc.baseP2} />
-            <Row label={`Pranie (${calc.totalHours}h × ${LAUNDRY_RATE} zł)`} value={calc.totalLaundry} />
-            <Row label="Bonus telefon" value={calc.totalPhoneBonus} />
-            <Row label={`Kilometry (${calc.km} km × ${KM_RATE} zł)`} value={calc.kmBonus} />
-            <Row
-              label={`Bonusy zamówień`}
-              value={calc.orderBonus}
-              subtitle={`${calc.wdOrders} ×${calc.wdMultiplier} zł + ${calc.weOrders} ×${calc.weMultiplier} zł`}
+        {/* Km + Orders + Tips card */}
+        <Card className="overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
+          <CardContent className="pt-5 space-y-5">
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/10">
+                <Bike className="h-4 w-4 text-emerald-500" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">
+                  Kilometry, zamowienia, napiwki
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Dodatkowe bonusy do Wyplaty 1
+                </p>
+              </div>
+            </div>
+
+            <InputField
+              id="km"
+              label="Kilometry"
+              hint={`${KM_RATE} zl/km`}
+              type="number"
+              step="0.1"
+              min="0"
+              placeholder="0"
+              value={totalKm}
+              onChange={setTotalKm}
+              suffix="km"
             />
-            <Row label="Napiwki" value={calc.tipsVal} />
-            <Separator />
-            <div className="flex justify-between font-bold text-lg pt-1">
-              <span>Razem</span>
-              <span className="text-green-600">{formatPLN(calc.wyplata1)}</span>
+
+            <div className="grid grid-cols-2 gap-4">
+              <InputField
+                id="wd"
+                label="Zamowienia pon-czw"
+                type="number"
+                min="0"
+                placeholder="0"
+                value={weekdayOrders}
+                onChange={setWeekdayOrders}
+              />
+              <InputField
+                id="we"
+                label="Zamowienia pt-ndz"
+                type="number"
+                min="0"
+                placeholder="0"
+                value={weekendOrders}
+                onChange={setWeekendOrders}
+              />
+            </div>
+
+            <InputField
+              id="tips"
+              label="Napiwki"
+              hint="caly miesiac"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0"
+              value={tips}
+              onChange={setTips}
+              suffix="zl"
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Breakdown section */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Wypłata 2 breakdown */}
+        <Card className="overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
+          <CardContent className="pt-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
+                  <CalendarDays className="h-4 w-4 text-blue-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Wyplata 2 — 25 dnia</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Godziny z okresu 1-15
+                  </p>
+                </div>
+              </div>
+              <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                {formatPLN(calc.wyplata2)}
+              </span>
+            </div>
+
+            <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+              <BreakdownRow
+                icon={Clock}
+                label="Godziny"
+                detail={`${calc.h1}h x ${HOURLY_RATE} zl`}
+                value={calc.baseP1}
+              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Total */}
-        <Card className="bg-primary/5 border-primary/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Coins className="h-4 w-4 text-primary" />
-              Podsumowanie miesiąca
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Wypłata 2 (25.)</span>
-              <span className="text-blue-600 font-medium">{formatPLN(calc.wyplata2)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Wypłata 1 (10.)</span>
-              <span className="text-green-600 font-medium">{formatPLN(calc.wyplata1)}</span>
-            </div>
-            <Separator />
-            <div className="flex justify-between font-bold text-xl pt-1">
-              <span>Łącznie</span>
-              <span>{formatPLN(calc.total)}</span>
+        {/* Wypłata 1 breakdown */}
+        <Card className="overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
+          <CardContent className="pt-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/10">
+                  <Banknote className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">
+                    Wyplata 1 — 10 dnia
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Godziny 16-31 + wszystkie bonusy
+                  </p>
+                </div>
+              </div>
+              <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                {formatPLN(calc.wyplata1)}
+              </span>
             </div>
 
-            <Separator className="my-3" />
-            <p className="text-xs font-medium text-muted-foreground mb-2">Składniki</p>
-            <div className="space-y-1.5">
-              <MiniRow label="Godziny" value={calc.baseP1 + calc.baseP2} />
-              <MiniRow label="Pranie" value={calc.totalLaundry} />
-              <MiniRow label="Bonus telefon" value={calc.totalPhoneBonus} />
-              <MiniRow label="Kilometry" value={calc.kmBonus} />
-              <MiniRow label="Bonusy zamówień" value={calc.orderBonus} />
-              <MiniRow label="Napiwki" value={calc.tipsVal} />
+            <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+              <BreakdownRow
+                icon={Clock}
+                label="Godziny"
+                detail={`${calc.h2}h x ${HOURLY_RATE} zl`}
+                value={calc.baseP2}
+              />
+              <BreakdownRow
+                icon={Shirt}
+                label="Pranie"
+                detail={`${calc.totalHours}h x ${LAUNDRY_RATE} zl`}
+                value={calc.totalLaundry}
+              />
+              <BreakdownRow
+                icon={Smartphone}
+                label="Bonus telefon"
+                detail={
+                  calc.totalHours <= 40
+                    ? `${calc.totalHours}h x ${PHONE_RATE_UNDER_40} zl`
+                    : `ryczalt >40h`
+                }
+                value={calc.totalPhoneBonus}
+              />
+              <BreakdownRow
+                icon={Bike}
+                label="Kilometry"
+                detail={`${calc.km} km x ${KM_RATE} zl`}
+                value={calc.kmBonus}
+              />
+              <BreakdownRow
+                icon={Package}
+                label="Bonusy zamowien"
+                detail={`${calc.wdOrders} x${calc.wdMultiplier} + ${calc.weOrders} x${calc.weMultiplier}`}
+                value={calc.orderBonus}
+              />
+              <BreakdownRow
+                icon={HandCoins}
+                label="Napiwki"
+                value={calc.tipsVal}
+              />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Order bonus reference table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            Tabela mnożników zamówień
+      {/* Order tier indicator */}
+      <Card className="overflow-hidden">
+        <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-400" />
+        <CardContent className="pt-5 space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-amber-500/10">
+              <Zap className="h-4 w-4 text-amber-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm">Progi zamowien</h3>
+              <p className="text-xs text-muted-foreground">
+                {calc.totalOrders > 0
+                  ? `${calc.totalOrders} zamowien — prog: ${ORDER_TIERS[activeTier].range}`
+                  : "Wpisz zamowienia aby zobaczyc aktywny prog"}
+              </p>
+            </div>
             {calc.totalOrders > 0 && (
-              <span className="ml-auto text-xs font-normal text-muted-foreground">
-                Twój próg: {calc.totalOrders} zamówień →
-                pon-czw: ×{calc.wdMultiplier} zł, pt-ndz: ×{calc.weMultiplier} zł
-              </span>
+              <div className="ml-auto flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="text-xs font-normal gap-1"
+                >
+                  pon-czw:{" "}
+                  <span className="font-semibold">
+                    x{calc.wdMultiplier} zl
+                  </span>
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className="text-xs font-normal gap-1"
+                >
+                  pt-ndz:{" "}
+                  <span className="font-semibold">
+                    x{calc.weMultiplier} zl
+                  </span>
+                </Badge>
+              </div>
             )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 pr-4 font-medium">Próg zamówień</th>
-                  <th className="text-center py-2 px-4 font-medium">Pon-Czw</th>
-                  <th className="text-center py-2 pl-4 font-medium">Pt-Ndz</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { range: "0-49", wd: "×0", we: "×0" },
-                  { range: "50-124", wd: "×1 zł", we: "×1 zł" },
-                  { range: "125-249", wd: "×1 zł", we: "×2 zł" },
-                  { range: "250-399", wd: "×1.5 zł", we: "×3 zł" },
-                  { range: "400-549", wd: "×2 zł", we: "×4 zł" },
-                  { range: "550+", wd: "×2.5 zł", we: "×5 zł" },
-                ].map((row, i) => {
-                  const isActive =
-                    calc.totalOrders >= [0, 50, 125, 250, 400, 550][i] &&
-                    (i === 5 || calc.totalOrders < [50, 125, 250, 400, 550, Infinity][i]);
-                  return (
-                    <tr
-                      key={row.range}
+          </div>
+
+          {/* Tier steps */}
+          <div className="grid grid-cols-6 gap-1.5">
+            {ORDER_TIERS.map((tier, i) => {
+              const isActive = i === activeTier;
+              const isPast = i < activeTier;
+              return (
+                <div key={tier.range} className="space-y-1.5">
+                  <div
+                    className={cn(
+                      "h-1.5 rounded-full transition-colors",
+                      isActive
+                        ? "bg-amber-500"
+                        : isPast
+                          ? "bg-amber-500/40"
+                          : "bg-muted"
+                    )}
+                  />
+                  <div
+                    className={cn(
+                      "rounded-lg border p-2.5 text-center transition-all",
+                      isActive
+                        ? "border-amber-500/50 bg-amber-500/5 ring-1 ring-amber-500/20"
+                        : "border-transparent bg-muted/50"
+                    )}
+                  >
+                    <p
                       className={cn(
-                        "border-b last:border-0",
-                        isActive && "bg-primary/10 font-medium"
+                        "text-xs font-semibold",
+                        isActive
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-muted-foreground"
                       )}
                     >
-                      <td className="py-2 pr-4">{row.range}</td>
-                      <td className="py-2 px-4 text-center">{row.wd}</td>
-                      <td className="py-2 pl-4 text-center">{row.we}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      {tier.range}
+                    </p>
+                    <div className="mt-1 space-y-0.5">
+                      <p
+                        className={cn(
+                          "text-[10px]",
+                          isActive
+                            ? "text-foreground"
+                            : "text-muted-foreground/70"
+                        )}
+                      >
+                        pon-czw: x{tier.wd}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-[10px]",
+                          isActive
+                            ? "text-foreground"
+                            : "text-muted-foreground/70"
+                        )}
+                      >
+                        pt-ndz: x{tier.we}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -388,33 +515,154 @@ export default function CalculatorPage() {
 }
 
 // --- HELPER COMPONENTS ---
-function Row({
+
+function SummaryCard({
   label,
+  sublabel,
   value,
-  subtitle,
+  icon: Icon,
+  color,
+  highlight,
 }: {
   label: string;
+  sublabel: string;
   value: number;
-  subtitle?: string;
+  icon: React.ElementType;
+  color: "blue" | "emerald" | "violet";
+  highlight?: boolean;
 }) {
+  const colorMap = {
+    blue: {
+      bg: "bg-blue-500/10",
+      icon: "text-blue-500",
+      value: "text-blue-600 dark:text-blue-400",
+      gradient: "from-blue-500/5 to-transparent",
+    },
+    emerald: {
+      bg: "bg-emerald-500/10",
+      icon: "text-emerald-500",
+      value: "text-emerald-600 dark:text-emerald-400",
+      gradient: "from-emerald-500/5 to-transparent",
+    },
+    violet: {
+      bg: "bg-violet-500/10",
+      icon: "text-violet-500",
+      value: "text-foreground",
+      gradient: "from-violet-500/5 to-transparent",
+    },
+  };
+  const c = colorMap[color];
+
   return (
-    <div>
-      <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium">{formatPLN(value)}</span>
-      </div>
-      {subtitle && (
-        <p className="text-xs text-muted-foreground/70 text-right">{subtitle}</p>
+    <Card
+      className={cn(
+        "relative overflow-hidden",
+        highlight && "ring-1 ring-violet-500/20 border-violet-500/30"
       )}
+    >
+      <div
+        className={cn(
+          "absolute inset-0 bg-gradient-to-br opacity-50",
+          c.gradient
+        )}
+      />
+      <CardContent className="relative pt-5 pb-5">
+        <div className="flex items-center gap-2 mb-3">
+          <div
+            className={cn(
+              "flex items-center justify-center h-7 w-7 rounded-md",
+              c.bg
+            )}
+          >
+            <Icon className={cn("h-3.5 w-3.5", c.icon)} />
+          </div>
+          <div>
+            <p className="text-xs font-medium text-muted-foreground">{label}</p>
+            <p className="text-[10px] text-muted-foreground/60">{sublabel}</p>
+          </div>
+        </div>
+        <p className={cn("text-2xl font-bold tracking-tight", c.value)}>
+          {formatPLN(value)}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function InputField({
+  id,
+  label,
+  hint,
+  suffix,
+  value,
+  onChange,
+  ...inputProps
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+  suffix?: string;
+  value: string;
+  onChange: (value: string) => void;
+} & Omit<React.ComponentProps<"input">, "onChange" | "value" | "id">) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between">
+        <Label htmlFor={id} className="text-xs font-medium">
+          {label}
+        </Label>
+        {hint && (
+          <span className="text-[10px] text-muted-foreground">{hint}</span>
+        )}
+      </div>
+      <div className="relative">
+        <Input
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(suffix && "pr-10")}
+          {...inputProps}
+        />
+        {suffix && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+            {suffix}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
 
-function MiniRow({ label, value }: { label: string; value: number }) {
+function BreakdownRow({
+  icon: Icon,
+  label,
+  detail,
+  value,
+}: {
+  icon: React.ElementType;
+  label: string;
+  detail?: string;
+  value: number;
+}) {
   return (
-    <div className="flex justify-between text-xs">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{formatPLN(value)}</span>
+    <div className="flex items-center justify-between gap-2 py-1">
+      <div className="flex items-center gap-2 min-w-0">
+        <Icon className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+        <span className="text-sm text-muted-foreground truncate">{label}</span>
+        {detail && (
+          <span className="text-[10px] text-muted-foreground/50 truncate hidden sm:inline">
+            {detail}
+          </span>
+        )}
+      </div>
+      <span
+        className={cn(
+          "text-sm font-medium tabular-nums shrink-0",
+          value === 0 && "text-muted-foreground/40"
+        )}
+      >
+        {formatPLN(value)}
+      </span>
     </div>
   );
 }
