@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "./ThemeToggle";
 
 const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -62,8 +63,9 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           );
         })}
       </nav>
-      <div className="p-4 text-xs text-muted-foreground">
-        Personal Finance Dashboard
+      <div className="flex items-center justify-between p-4">
+        <span className="text-xs text-muted-foreground">Personal Finance Dashboard</span>
+        <ThemeToggle />
       </div>
     </div>
   );
