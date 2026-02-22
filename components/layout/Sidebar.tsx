@@ -16,55 +16,102 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./ThemeToggle";
 
-const navItems = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/income", label: "Przychody", icon: TrendingUp },
-  { href: "/expenses", label: "Wydatki", icon: TrendingDown },
-  { href: "/investments", label: "Inwestycje", icon: LineChart },
-  { href: "/savings", label: "Oszczędności", icon: PiggyBank },
-  { href: "/calculator", label: "Kalkulator", icon: Calculator },
-  { href: "/scan", label: "Skaner AI", icon: ScanLine },
+const navGroups = [
+  {
+    label: "Dashboard",
+    items: [{ href: "/", label: "Overview", icon: LayoutDashboard }],
+  },
+  {
+    label: "Finanse",
+    items: [
+      { href: "/income", label: "Przychody", icon: TrendingUp },
+      { href: "/expenses", label: "Wydatki", icon: TrendingDown },
+      { href: "/savings", label: "Oszczednosci", icon: PiggyBank },
+      { href: "/investments", label: "Inwestycje", icon: LineChart },
+    ],
+  },
+  {
+    label: "Narzedzia",
+    items: [
+      { href: "/calculator", label: "Kalkulator", icon: Calculator },
+      { href: "/scan", label: "Skaner AI", icon: ScanLine },
+    ],
+  },
 ];
+
+const allNavItems = navGroups.flatMap((g) => g.items);
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
 
   return (
     <div className="flex h-full flex-col bg-card border-r border-border">
-      <div className="flex items-center justify-between p-6 pb-4">
-        <h1 className="text-xl font-bold tracking-tight">Finance</h1>
+      <div className="flex items-center justify-between px-5 pt-6 pb-2">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
+            F
+          </div>
+          <span className="text-base font-semibold tracking-tight">
+            Finance
+          </span>
+        </div>
         {onClose && (
-          <Button variant="ghost" size="icon" onClick={onClose} className="md:hidden">
-            <X className="h-5 w-5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-8 w-8 md:hidden"
+          >
+            <X className="h-4 w-4" />
           </Button>
         )}
       </div>
-      <nav className="flex-1 space-y-1 px-3">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onClose}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+
+      <nav className="flex-1 overflow-y-auto px-3 pt-4 space-y-6">
+        {navGroups.map((group) => (
+          <div key={group.label}>
+            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const isActive =
+                  item.href === "/"
+                    ? pathname === "/"
+                    : pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={onClose}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    <item.icon
+                      className={cn(
+                        "h-4 w-4",
+                        isActive
+                          ? "text-primary"
+                          : "text-muted-foreground/70"
+                      )}
+                    />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
-      <div className="flex items-center justify-between p-4">
-        <span className="text-xs text-muted-foreground">Personal Finance Dashboard</span>
+
+      <div className="flex items-center justify-between border-t border-border px-5 py-3">
+        <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">
+          v1.0
+        </span>
         <ThemeToggle />
       </div>
     </div>
@@ -73,10 +120,11 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
 export function MobileNav() {
   const pathname = usePathname();
+  const mobileItems = allNavItems.slice(0, 5);
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-border bg-card py-2 md:hidden">
-      {navItems.map((item) => {
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-border bg-card/95 backdrop-blur-sm py-1.5 md:hidden">
+      {mobileItems.map((item) => {
         const isActive =
           item.href === "/"
             ? pathname === "/"
@@ -86,13 +134,15 @@ export function MobileNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex flex-col items-center gap-1 px-2 py-1 text-xs transition-colors",
+              "flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition-colors",
               isActive
-                ? "text-primary font-medium"
+                ? "text-primary font-semibold"
                 : "text-muted-foreground"
             )}
           >
-            <item.icon className="h-5 w-5" />
+            <item.icon
+              className={cn("h-5 w-5", isActive && "text-primary")}
+            />
             <span>{item.label}</span>
           </Link>
         );

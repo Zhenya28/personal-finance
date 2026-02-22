@@ -11,19 +11,18 @@ import {
   TrendingUp,
   TrendingDown,
   Calculator,
-  Clock,
+  LineChart,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-export const revalidate = 300; // refresh every 5 minutes
+export const revalidate = 300;
 
 export default async function InvestmentsPage() {
   const investments = await prisma.investment.findMany({
     orderBy: { date: "desc" },
   });
 
-  // Fetch live quote + EUR/PLN + historical data in parallel
   const [quote, eurPln, hist1mo, hist3mo, hist6mo, hist1y, hist2y, hist5y] =
     await Promise.all([
       getQuote("VWCE.DE"),
@@ -38,7 +37,6 @@ export default async function InvestmentsPage() {
 
   const currentPriceEur = quote?.price ?? null;
   const eurPlnRate = eurPln ?? null;
-  // Current price of 1 VWCE unit in PLN
   const currentPricePln =
     currentPriceEur && eurPlnRate ? currentPriceEur * eurPlnRate : null;
 
@@ -46,7 +44,6 @@ export default async function InvestmentsPage() {
   const dayChangePct = quote?.changePercent ?? 0;
 
   const totalUnits = investments.reduce((sum, inv) => sum + inv.units, 0);
-  // pricePerUnit is stored in PLN, so totalInvested is in PLN
   const totalInvested = investments.reduce(
     (sum, inv) => sum + inv.units * inv.pricePerUnit,
     0
@@ -58,7 +55,6 @@ export default async function InvestmentsPage() {
   const pnlPct = totalInvested > 0 ? (pnl / totalInvested) * 100 : 0;
   const avgPricePln = totalUnits > 0 ? totalInvested / totalUnits : 0;
 
-  // Build portfolio value over time (per-purchase cumulative)
   const sortedInvestments = [...investments].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
@@ -76,7 +72,6 @@ export default async function InvestmentsPage() {
     };
   });
 
-  // Add current point
   if (currentPricePln && portfolioValueData.length > 0) {
     portfolioValueData.push({
       date: "Dzis",
@@ -85,7 +80,6 @@ export default async function InvestmentsPage() {
     });
   }
 
-  // Per-purchase P&L (like XTB positions view) — all in PLN
   const positions = investments.map((inv) => {
     const currentVal = currentPricePln
       ? inv.units * currentPricePln
@@ -112,12 +106,22 @@ export default async function InvestmentsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Inwestycje</h2>
+    <div className="space-y-8 max-w-5xl mx-auto">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-blue-500/10">
+              <LineChart className="h-5 w-5 text-blue-500" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight">Inwestycje</h2>
+          </div>
+          <p className="text-sm text-muted-foreground ml-12">
+            Portfolio VWCE i historia zakupow
+          </p>
+        </div>
         {quote && eurPlnRate && (
           <div className="text-right">
-            <p className="text-sm text-muted-foreground">{quote.name}</p>
+            <p className="text-sm font-medium">{quote.name}</p>
             <p className="text-xs text-muted-foreground">
               EUR/PLN: {eurPlnRate.toFixed(4)}
             </p>
@@ -125,7 +129,6 @@ export default async function InvestmentsPage() {
         )}
       </div>
 
-      {/* Metric cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Zainwestowano"
@@ -164,30 +167,30 @@ export default async function InvestmentsPage() {
         />
       </div>
 
-      {/* ETF Price chart */}
       <PortfolioChart dataByPeriod={dataByPeriod} ticker="VWCE.DE" />
-
-      {/* Portfolio value vs invested chart */}
       <PortfolioValueChart data={portfolioValueData} />
 
-      {/* Positions table (XTB-style) */}
       {positions.length > 0 && currentPricePln && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Pozycje
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
+        <Card className="overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
+                <Wallet className="h-4 w-4 text-blue-500" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Pozycje</h3>
+                <p className="text-xs text-muted-foreground">{positions.length} zakupow</p>
+              </div>
+            </div>
+            <div className="space-y-0 divide-y divide-border">
               {positions.map((pos) => (
                 <div
                   key={pos.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                  className="flex items-center justify-between gap-3 py-3"
                 >
                   <div>
-                    <p className="text-sm font-medium">
+                    <p className="text-sm font-medium tabular-nums">
                       {pos.units.toFixed(4)} szt &middot;{" "}
                       {formatDate(pos.date)}
                     </p>
@@ -197,10 +200,10 @@ export default async function InvestmentsPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">{formatPLN(pos.currentVal)}</p>
+                    <p className="text-sm font-semibold tabular-nums">{formatPLN(pos.currentVal)}</p>
                     <Badge
                       variant={pos.pnl >= 0 ? "default" : "destructive"}
-                      className="text-xs"
+                      className="text-[10px]"
                     >
                       {pos.pnl >= 0 ? "+" : ""}
                       {formatPLN(pos.pnl)} ({pos.pnl >= 0 ? "+" : ""}

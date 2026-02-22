@@ -12,12 +12,10 @@ async function getSavingsData() {
     orderBy: { createdAt: "asc" },
   });
 
-  // Get unique non-PLN currencies
   const currencies = [...new Set(accounts.map((a) => a.currency))].filter(
     (c) => c !== "PLN"
   );
 
-  // Fetch FX rates in parallel
   const rateEntries = await Promise.all(
     currencies.map(async (c) => {
       const rate = await getFxRate(c, "PLN");
@@ -37,11 +35,18 @@ export default async function SavingsPage() {
   const { accounts, fxRates } = await getSavingsData();
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-        <PiggyBank className="h-6 w-6" />
-        Oszczędności
-      </h2>
+    <div className="space-y-8 max-w-5xl mx-auto">
+      <div>
+        <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-amber-500/10">
+            <PiggyBank className="h-5 w-5 text-amber-500" />
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight">Oszczednosci</h2>
+        </div>
+        <p className="text-sm text-muted-foreground ml-12">
+          Konta oszczednosciowe w roznych walutach
+        </p>
+      </div>
 
       <SavingsSummary accounts={accounts} fxRates={fxRates} />
 

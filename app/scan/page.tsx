@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -20,7 +18,6 @@ import {
   INCOME_CATEGORY_LABELS,
   formatPLN,
 } from "@/lib/utils";
-// save via API route, not server action
 import { toast } from "sonner";
 import {
   ScanLine,
@@ -43,7 +40,6 @@ interface Transaction {
 type ScanType = "income" | "expense";
 
 export default function ScanPage() {
-  const router = useRouter();
   const [type, setType] = useState<ScanType>("expense");
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -102,7 +98,7 @@ export default function ScanPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.error || `Błąd skanowania (${res.status})`);
+        toast.error(data.error || `Blad skanowania (${res.status})`);
         return;
       }
 
@@ -115,7 +111,7 @@ export default function ScanPage() {
       setTransactions(data.transactions);
       setScanned(true);
     } catch {
-      toast.error("Błąd połączenia z serwerem");
+      toast.error("Blad polaczenia z serwerem");
     } finally {
       setScanning(false);
     }
@@ -135,11 +131,9 @@ export default function ScanPage() {
         date: t.date || new Date().toISOString().split("T")[0],
       }));
 
-      console.log("[scan] Saving transactions:", JSON.stringify(cleanTransactions));
-
       const res = await fetch("/api/scan/save", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-cache",
         },
@@ -147,42 +141,38 @@ export default function ScanPage() {
       });
 
       const responseText = await res.text();
-      console.log("[scan] Save response:", res.status, responseText);
 
       let data;
       try {
         data = JSON.parse(responseText);
       } catch {
-        toast.error(`Błąd parsowania odpowiedzi: ${responseText.substring(0, 100)}`);
+        toast.error(`Blad parsowania odpowiedzi`);
         return;
       }
 
       if (!res.ok) {
-        toast.error(`Błąd zapisu (${res.status}): ${data.error || "Nieznany błąd"}`);
+        toast.error(`Blad zapisu (${res.status}): ${data.error || "Nieznany blad"}`);
         return;
       }
 
       if (data.saved === 0) {
-        toast.error("Żadna transakcja nie została zapisana");
+        toast.error("Zadna transakcja nie zostala zapisana");
         return;
       }
 
-      toast.success(`Zapisano ${data.saved} ${type === "income" ? "przychodów" : "wydatków"}!`);
-      
-      // Clear state and redirect
+      toast.success(`Zapisano ${data.saved} ${type === "income" ? "przychodow" : "wydatkow"}!`);
+
       setTransactions([]);
       setImage(null);
       setImagePreview(null);
       setScanned(false);
-      
-      // Redirect after short delay to let toast display
+
       setTimeout(() => {
         window.location.href = type === "income" ? "/income" : "/expenses";
       }, 1000);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Nieznany błąd";
-      console.error("[scan] Save error:", e);
-      toast.error(`Błąd sieci: ${msg}`);
+      const msg = e instanceof Error ? e.message : "Nieznany blad";
+      toast.error(`Blad sieci: ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -212,12 +202,19 @@ export default function ScanPage() {
   const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
 
   return (
-    <div className="space-y-6" onPaste={handlePaste}>
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <Sparkles className="h-6 w-6" />
-          Skaner AI
-        </h2>
+    <div className="space-y-8 max-w-5xl mx-auto" onPaste={handlePaste}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-violet-500/10">
+              <Sparkles className="h-5 w-5 text-violet-500" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight">Skaner AI</h2>
+          </div>
+          <p className="text-sm text-muted-foreground ml-12">
+            Skanuj paragony i wyciagi automatycznie
+          </p>
+        </div>
         <div className="flex gap-2">
           <Button
             variant={type === "expense" ? "default" : "outline"}
@@ -246,14 +243,16 @@ export default function ScanPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left: Image upload */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ImageIcon className="h-4 w-4" />
-              Zdjęcie / Screenshot
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <Card className="overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-violet-500 to-purple-400" />
+          <CardContent className="pt-5">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-violet-500/10">
+                <ImageIcon className="h-4 w-4 text-violet-500" />
+              </div>
+              <h3 className="font-semibold text-sm">Zdjecie / Screenshot</h3>
+            </div>
+
             {!imagePreview ? (
               <div
                 role="button"
@@ -265,13 +264,15 @@ export default function ScanPage() {
                   if (e.key === "Enter" || e.key === " ")
                     fileInputRef.current?.click();
                 }}
-                className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-muted-foreground/25 p-12 text-center cursor-pointer hover:border-primary/50 hover:bg-accent/50 transition-colors"
+                className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-muted-foreground/20 p-12 text-center cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
               >
-                <Upload className="h-10 w-10 text-muted-foreground/50" />
+                <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-muted">
+                  <Upload className="h-5 w-5 text-muted-foreground" />
+                </div>
                 <div>
-                  <p className="font-medium">Przeciągnij zdjęcie tutaj</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    lub kliknij aby wybrać • możesz też wkleić (Ctrl+V)
+                  <p className="text-sm font-medium">Przeciagnij zdjecie tutaj</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    lub kliknij aby wybrac &middot; mozesz tez wkleic (Ctrl+V)
                   </p>
                 </div>
                 <input
@@ -292,7 +293,7 @@ export default function ScanPage() {
                   <img
                     src={imagePreview}
                     alt="Uploaded screenshot"
-                    className="w-full max-h-[500px] object-contain bg-muted/30"
+                    className="w-full max-h-[400px] object-contain bg-muted/30"
                   />
                 </div>
                 <div className="flex gap-2">
@@ -304,7 +305,7 @@ export default function ScanPage() {
                     {scanning ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Skanuję...
+                        Skanuje...
                       </>
                     ) : (
                       <>
@@ -323,39 +324,43 @@ export default function ScanPage() {
         </Card>
 
         {/* Right: Results */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <ScanLine className="h-4 w-4" />
-                Wykryte transakcje
+        <Card className="overflow-hidden">
+          <div className="h-1 bg-gradient-to-r from-violet-500 to-indigo-400" />
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-violet-500/10">
+                  <ScanLine className="h-4 w-4 text-violet-500" />
+                </div>
+                <h3 className="font-semibold text-sm">Wykryte transakcje</h3>
                 {transactions.length > 0 && (
-                  <Badge variant="secondary" className="ml-1">
+                  <Badge variant="secondary" className="text-[10px]">
                     {transactions.length}
                   </Badge>
                 )}
-              </CardTitle>
+              </div>
               {transactions.length > 0 && (
-                <span className="text-sm font-medium">
-                  Suma: {formatPLN(totalAmount)}
+                <span className="text-sm font-semibold tabular-nums">
+                  {formatPLN(totalAmount)}
                 </span>
               )}
             </div>
-          </CardHeader>
-          <CardContent>
+
             {!scanned ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-                <ScanLine className="h-10 w-10 mb-3 opacity-30" />
-                <p>Wgraj zdjęcie i naciśnij &quot;Skanuj&quot;</p>
-                <p className="text-xs mt-1">
-                  AI przeanalizuje obraz i wyciągnie transakcje
+              <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+                <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-muted mb-3">
+                  <ScanLine className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <p className="text-sm">Wgraj zdjecie i nacisnij &quot;Skanuj&quot;</p>
+                <p className="text-xs mt-1 text-muted-foreground/70">
+                  AI przeanalizuje obraz i wyciagnie transakcje
                 </p>
               </div>
             ) : transactions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-                <p>Nie znaleziono transakcji</p>
-                <p className="text-xs mt-1">
-                  Spróbuj z innym zdjęciem lub lepszą jakością
+              <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+                <p className="text-sm">Nie znaleziono transakcji</p>
+                <p className="text-xs mt-1 text-muted-foreground/70">
+                  Sprobuj z innym zdjeciem lub lepsza jakoscia
                 </p>
               </div>
             ) : (
@@ -363,12 +368,12 @@ export default function ScanPage() {
                 {transactions.map((t, i) => (
                   <div
                     key={i}
-                    className="rounded-lg border p-3 space-y-2 bg-card"
+                    className="rounded-lg border p-3 space-y-2"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 grid grid-cols-2 gap-2">
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">
+                          <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">
                             Kwota
                           </Label>
                           <Input
@@ -386,7 +391,7 @@ export default function ScanPage() {
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">
+                          <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">
                             Kategoria
                           </Label>
                           <Select
@@ -411,15 +416,15 @@ export default function ScanPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive mt-5"
+                        className="h-7 w-7 text-muted-foreground/40 hover:text-destructive mt-5"
                         onClick={() => removeTransaction(i)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">
+                        <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">
                           Opis
                         </Label>
                         <Input
@@ -431,7 +436,7 @@ export default function ScanPage() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">
+                        <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">
                           Data
                         </Label>
                         <Input
@@ -447,24 +452,21 @@ export default function ScanPage() {
                   </div>
                 ))}
 
-                <Separator />
-
                 <Button
                   onClick={handleSave}
                   disabled={saving || transactions.length === 0}
                   className="w-full"
-                  size="lg"
                 >
                   {saving ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Zapisuję...
+                      Zapisuje...
                     </>
                   ) : (
                     <>
                       <Check className="h-4 w-4 mr-2" />
-                      Potwierdź i zapisz ({transactions.length}{" "}
-                      {type === "income" ? "przychodów" : "wydatków"})
+                      Potwierdz i zapisz ({transactions.length}{" "}
+                      {type === "income" ? "przychodow" : "wydatkow"})
                     </>
                   )}
                 </Button>

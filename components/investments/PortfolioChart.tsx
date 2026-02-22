@@ -10,9 +10,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { BarChart3 } from "lucide-react";
 
 interface ChartData {
   date: string;
@@ -48,32 +49,42 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
   const isPositive = change >= 0;
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle className="text-base">
-              {ticker} — Kurs ETF
-            </CardTitle>
-            {data.length > 0 && (
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-2xl font-bold">
-                  {lastPrice.toFixed(2)} EUR
-                </span>
-                <span
-                  className={cn(
-                    "text-sm font-medium",
-                    isPositive
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
-                  )}
-                >
-                  {isPositive ? "+" : ""}
-                  {change.toFixed(2)} ({isPositive ? "+" : ""}
-                  {changePct.toFixed(2)}%)
-                </span>
-              </div>
-            )}
+    <Card className="overflow-hidden">
+      <div className={cn(
+        "h-1 bg-gradient-to-r",
+        isPositive ? "from-emerald-500 to-green-400" : "from-red-500 to-orange-400"
+      )} />
+      <CardContent className="pt-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className={cn(
+              "flex items-center justify-center h-8 w-8 rounded-lg",
+              isPositive ? "bg-emerald-500/10" : "bg-red-500/10"
+            )}>
+              <BarChart3 className={cn("h-4 w-4", isPositive ? "text-emerald-500" : "text-red-500")} />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm">{ticker} — Kurs ETF</h3>
+              {data.length > 0 && (
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-lg font-bold tabular-nums">
+                    {lastPrice.toFixed(2)} EUR
+                  </span>
+                  <span
+                    className={cn(
+                      "text-xs font-medium",
+                      isPositive
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-red-600 dark:text-red-400"
+                    )}
+                  >
+                    {isPositive ? "+" : ""}
+                    {change.toFixed(2)} ({isPositive ? "+" : ""}
+                    {changePct.toFixed(2)}%)
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex gap-1">
             {periods.map((p) => (
@@ -89,25 +100,24 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
             ))}
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
+
         {data.length === 0 ? (
-          <div className="flex h-64 items-center justify-center text-muted-foreground">
+          <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
             Brak danych dla tego okresu.
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
                   <stop
                     offset="5%"
-                    stopColor={isPositive ? "#22c55e" : "#ef4444"}
+                    stopColor={isPositive ? "#10b981" : "#ef4444"}
                     stopOpacity={0.3}
                   />
                   <stop
                     offset="95%"
-                    stopColor={isPositive ? "#22c55e" : "#ef4444"}
+                    stopColor={isPositive ? "#10b981" : "#ef4444"}
                     stopOpacity={0}
                   />
                 </linearGradient>
@@ -119,14 +129,16 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
               />
               <XAxis
                 dataKey="date"
-                className="text-xs"
+                className="text-[10px]"
                 tickLine={false}
                 axisLine={false}
+                dy={8}
               />
               <YAxis
-                className="text-xs"
+                className="text-[10px]"
                 tickLine={false}
                 axisLine={false}
+                dx={-8}
                 domain={["dataMin - 2", "dataMax + 2"]}
                 tickFormatter={(v: number) => `${v.toFixed(0)}`}
               />
@@ -135,7 +147,7 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
                   backgroundColor: "hsl(var(--card))",
                   border: "1px solid hsl(var(--border))",
                   borderRadius: "8px",
-                  fontSize: "13px",
+                  fontSize: "12px",
                 }}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 formatter={(value: any) => [`${Number(value).toFixed(2)} EUR`, "Kurs"]}
@@ -144,11 +156,11 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
               <Area
                 type="monotone"
                 dataKey="close"
-                stroke={isPositive ? "#22c55e" : "#ef4444"}
+                stroke={isPositive ? "#10b981" : "#ef4444"}
                 strokeWidth={2}
                 fill="url(#colorPrice)"
                 dot={false}
-                activeDot={{ r: 4 }}
+                activeDot={{ r: 4, strokeWidth: 0 }}
               />
             </AreaChart>
           </ResponsiveContainer>

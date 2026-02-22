@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ import { addSavingsAccount } from "@/actions/savings";
 import { toast } from "sonner";
 
 const CURRENCIES = [
-  { value: "PLN", label: "PLN – Złoty" },
+  { value: "PLN", label: "PLN – Zloty" },
   { value: "USD", label: "USD – Dolar" },
   { value: "EUR", label: "EUR – Euro" },
   { value: "GBP", label: "GBP – Funt" },
@@ -37,14 +37,15 @@ export function SavingsForm() {
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Dodaj konto
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Card className="overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-400" />
+      <CardContent className="pt-5">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-amber-500/10">
+            <Plus className="h-4 w-4 text-amber-500" />
+          </div>
+          <h3 className="font-semibold text-sm">Dodaj konto</h3>
+        </div>
         <form ref={formRef} action={handleSubmit} className="grid gap-3 sm:grid-cols-4 items-end">
           <div className="space-y-1.5">
             <Label className="text-xs">Nazwa</Label>
@@ -70,7 +71,7 @@ export function SavingsForm() {
             <Input name="balance" type="number" step="0.01" defaultValue="0" required className="h-9" />
           </div>
           <Button type="submit" disabled={isPending} className="h-9">
-            {isPending ? "Dodaję..." : "Dodaj"}
+            {isPending ? "Dodaje..." : "Dodaj"}
           </Button>
         </form>
       </CardContent>

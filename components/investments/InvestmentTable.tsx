@@ -1,14 +1,7 @@
 "use client";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
 import { formatPLN, formatDate } from "@/lib/utils";
 import { deleteInvestment } from "@/actions/investments";
@@ -27,64 +20,72 @@ export function InvestmentTable({ data }: { data: Investment[] }) {
   async function handleDelete(id: string) {
     try {
       await deleteInvestment(id);
-      toast.success("Usunięto zakup");
+      toast.success("Usunieto zakup");
     } catch {
-      toast.error("Wystąpił błąd");
+      toast.error("Wystapil blad");
     }
   }
 
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-muted-foreground mb-2">Brak zakupów inwestycyjnych</p>
-        <p className="text-sm text-muted-foreground">
-          Dodaj pierwszy zakup VWCE powyżej
-        </p>
-      </div>
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-muted-foreground mb-1">Brak zakupow inwestycyjnych</p>
+          <p className="text-xs text-muted-foreground">
+            Dodaj pierwszy zakup VWCE powyzej
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Ticker</TableHead>
-            <TableHead className="text-right">Jednostki</TableHead>
-            <TableHead className="text-right">Cena/szt (PLN)</TableHead>
-            <TableHead className="text-right">Kwota (PLN)</TableHead>
-            <TableHead className="w-10" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+    <Card>
+      <CardContent className="pt-5 px-0">
+        <div className="px-5 mb-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Historia zakupow</p>
+        </div>
+        <div className="space-y-0 divide-y divide-border">
           {data.map((inv) => (
-            <TableRow key={inv.id}>
-              <TableCell className="font-medium">
-                {formatDate(inv.date)}
-              </TableCell>
-              <TableCell>{inv.ticker}</TableCell>
-              <TableCell className="text-right">{inv.units.toFixed(4)}</TableCell>
-              <TableCell className="text-right">
-                {formatPLN(inv.pricePerUnit)}
-              </TableCell>
-              <TableCell className="text-right font-medium">
-                {formatPLN(inv.units * inv.pricePerUnit)}
-              </TableCell>
-              <TableCell>
+            <div
+              key={inv.id}
+              className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-muted/30 transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="shrink-0">
+                  <p className="text-xs font-medium tabular-nums">
+                    {formatDate(inv.date)}
+                  </p>
+                </div>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {inv.ticker}
+                </span>
+                <span className="text-sm text-muted-foreground tabular-nums">
+                  {inv.units.toFixed(4)} szt
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="text-right">
+                  <p className="text-sm font-semibold tabular-nums">
+                    {formatPLN(inv.units * inv.pricePerUnit)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground tabular-nums">
+                    {formatPLN(inv.pricePerUnit)}/szt
+                  </p>
+                </div>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => handleDelete(inv.id)}
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  className="h-7 w-7 text-muted-foreground/40 hover:text-destructive"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
-              </TableCell>
-            </TableRow>
+              </div>
+            </div>
           ))}
-        </TableBody>
-      </Table>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

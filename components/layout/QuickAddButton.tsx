@@ -24,13 +24,13 @@ import { toast } from "sonner";
 type TransactionType = "income" | "expense";
 
 const incomeCategories = [
-  { value: "WYPLATA_1", label: "Wypłata 1" },
-  { value: "WYPLATA_2", label: "Wypłata 2" },
+  { value: "WYPLATA_1", label: "Wyplata 1" },
+  { value: "WYPLATA_2", label: "Wyplata 2" },
   { value: "INNE", label: "Inne" },
 ];
 
 const expenseCategories = [
-  { value: "ZAKUPY", label: "Zakupy spożywcze" },
+  { value: "ZAKUPY", label: "Zakupy spozywcze" },
   { value: "RESTAURACJE", label: "Restauracje" },
   { value: "TRANSPORT", label: "Transport" },
   { value: "SUBSCRIPTIONS", label: "Subskrypcje" },
@@ -77,14 +77,14 @@ export function QuickAddButton() {
     try {
       if (type === "income") {
         await addIncome(formData);
-        toast.success("Dodano przychód ✓");
+        toast.success("Dodano przychod");
       } else {
         await addExpense(formData);
-        toast.success("Dodano wydatek ✓");
+        toast.success("Dodano wydatek");
       }
       setOpen(false);
     } catch {
-      toast.error("Wystąpił błąd");
+      toast.error("Wystapil blad");
     } finally {
       setLoading(false);
     }
@@ -98,27 +98,27 @@ export function QuickAddButton() {
       <Button
         onClick={() => setOpen(true)}
         size="icon"
-        className="fixed bottom-20 right-6 z-50 h-14 w-14 rounded-full shadow-lg md:bottom-6"
+        className="fixed bottom-20 right-6 z-50 h-12 w-12 rounded-full shadow-lg md:bottom-6"
       >
-        <Plus className="h-6 w-6" />
+        <Plus className="h-5 w-5" />
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {type === "income" ? "Dodaj przychód" : "Dodaj wydatek"}
+            <DialogTitle className="text-base">
+              {type === "income" ? "Dodaj przychod" : "Dodaj wydatek"}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2">
             <Button
               variant={type === "income" ? "default" : "outline"}
               size="sm"
               onClick={() => setType("income")}
               className="flex-1"
             >
-              Przychód
+              Przychod
             </Button>
             <Button
               variant={type === "expense" ? "default" : "outline"}
@@ -130,11 +130,11 @@ export function QuickAddButton() {
             </Button>
           </div>
 
-          <form action={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="amount">Kwota (PLN)</Label>
+          <form action={handleSubmit} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="qa-amount" className="text-xs">Kwota (PLN)</Label>
               <Input
-                id="amount"
+                id="qa-amount"
                 name="amount"
                 type="number"
                 step="0.01"
@@ -142,14 +142,15 @@ export function QuickAddButton() {
                 placeholder="0,00"
                 required
                 autoFocus
+                className="h-9"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="category">Kategoria</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Kategoria</Label>
               <Select name="category" required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Wybierz kategorię" />
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Wybierz kategorie" />
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((cat) => (
@@ -161,35 +162,39 @@ export function QuickAddButton() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Opis (opcjonalnie)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="qa-desc" className="text-xs">Opis (opcjonalnie)</Label>
               <Input
-                id="description"
+                id="qa-desc"
                 name="description"
                 placeholder="np. Zakupy w Biedronce"
+                className="h-9"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="date">Data</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="qa-date" className="text-xs">Data</Label>
               <Input
-                id="date"
+                id="qa-date"
                 name="date"
                 type="date"
                 defaultValue={today}
                 required
+                className="h-9"
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Dodawanie..." : "Dodaj"}
+            <Button type="submit" className="w-full h-9" disabled={loading}>
+              {loading ? "Dodaje..." : "Dodaj"}
             </Button>
           </form>
 
-          <p className="text-xs text-muted-foreground text-center">
-            Skróty: <kbd className="px-1 py-0.5 bg-muted rounded text-xs">i</kbd> = przychód,{" "}
-            <kbd className="px-1 py-0.5 bg-muted rounded text-xs">e</kbd> = wydatek,{" "}
-            <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Esc</kbd> = zamknij
+          <p className="text-[10px] text-muted-foreground/60 text-center">
+            <kbd className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">i</kbd> przychod
+            {" · "}
+            <kbd className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">e</kbd> wydatek
+            {" · "}
+            <kbd className="px-1 py-0.5 bg-muted rounded text-[10px] font-mono">Esc</kbd> zamknij
           </p>
         </DialogContent>
       </Dialog>

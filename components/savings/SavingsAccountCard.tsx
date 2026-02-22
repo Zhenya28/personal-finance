@@ -8,12 +8,12 @@ import { useState, useTransition } from "react";
 import { updateSavingsBalance, deleteSavingsAccount } from "@/actions/savings";
 import { toast } from "sonner";
 
-const CURRENCY_CONFIG: Record<string, { color: string; symbol: string; flag: string }> = {
-  PLN: { color: "from-green-500 to-emerald-600", symbol: "zł", flag: "🇵🇱" },
-  USD: { color: "from-blue-500 to-indigo-600", symbol: "$", flag: "🇺🇸" },
-  EUR: { color: "from-yellow-500 to-amber-600", symbol: "€", flag: "🇪🇺" },
-  GBP: { color: "from-purple-500 to-violet-600", symbol: "£", flag: "🇬🇧" },
-  CHF: { color: "from-red-500 to-rose-600", symbol: "CHF", flag: "🇨🇭" },
+const CURRENCY_CONFIG: Record<string, { gradient: string; bg: string; text: string; symbol: string }> = {
+  PLN: { gradient: "from-emerald-500 to-green-400", bg: "bg-emerald-500/10", text: "text-emerald-500", symbol: "zl" },
+  USD: { gradient: "from-blue-500 to-indigo-400", bg: "bg-blue-500/10", text: "text-blue-500", symbol: "$" },
+  EUR: { gradient: "from-amber-500 to-yellow-400", bg: "bg-amber-500/10", text: "text-amber-500", symbol: "€" },
+  GBP: { gradient: "from-violet-500 to-purple-400", bg: "bg-violet-500/10", text: "text-violet-500", symbol: "£" },
+  CHF: { gradient: "from-red-500 to-rose-400", bg: "bg-red-500/10", text: "text-red-500", symbol: "CHF" },
 };
 
 interface SavingsAccountCardProps {
@@ -46,21 +46,21 @@ export function SavingsAccountCard({ id, name, currency, balance }: SavingsAccou
   };
 
   const handleDelete = () => {
-    if (!confirm("Usunąć to konto oszczędnościowe?")) return;
+    if (!confirm("Usunac to konto oszczednosciowe?")) return;
     startTransition(async () => {
       await deleteSavingsAccount(id);
-      toast.success("Konto usunięte");
+      toast.success("Konto usuniete");
     });
   };
 
   return (
     <Card className="overflow-hidden">
-      <div className={`h-1.5 bg-gradient-to-r ${config.color}`} />
+      <div className={`h-1 bg-gradient-to-r ${config.gradient}`} />
       <CardContent className="pt-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2.5">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${config.color} text-white text-lg`}>
-              {config.flag}
+            <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${config.bg}`}>
+              <span className={`text-sm font-bold ${config.text}`}>{config.symbol}</span>
             </div>
             <div>
               <p className="font-semibold text-sm">{name}</p>
@@ -70,10 +70,10 @@ export function SavingsAccountCard({ id, name, currency, balance }: SavingsAccou
           <div className="flex gap-1">
             {!editing && (
               <>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(true); setNewBalance(balance.toString()); }}>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/40 hover:text-foreground" onClick={() => { setEditing(true); setNewBalance(balance.toString()); }}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={handleDelete} disabled={isPending}>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/40 hover:text-destructive" onClick={handleDelete} disabled={isPending}>
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </>
@@ -99,7 +99,7 @@ export function SavingsAccountCard({ id, name, currency, balance }: SavingsAccou
             </Button>
           </div>
         ) : (
-          <p className="mt-3 text-2xl font-bold tracking-tight">
+          <p className="mt-3 text-2xl font-bold tracking-tight tabular-nums">
             {formatted} <span className="text-base font-medium text-muted-foreground">{config.symbol}</span>
           </p>
         )}

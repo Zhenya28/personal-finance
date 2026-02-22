@@ -8,9 +8,9 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { TrendingUp } from "lucide-react";
 
 interface ValuePoint {
   date: string;
@@ -22,14 +22,29 @@ export function PortfolioValueChart({ data }: { data: ValuePoint[] }) {
   if (data.length < 2) return null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
-          Wartość portfolio vs zainwestowane
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+    <Card className="overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-violet-500 to-purple-400" />
+      <CardContent className="pt-5">
+        <div className="flex items-center gap-2.5 mb-5">
+          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-violet-500/10">
+            <TrendingUp className="h-4 w-4 text-violet-500" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-sm">Wartosc portfolio vs zainwestowane</h3>
+            <p className="text-xs text-muted-foreground">Porownanie wartosci w czasie</p>
+          </div>
+          <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-violet-500" />
+              Wartosc
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-gray-400" />
+              Zainwestowane
+            </span>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={260}>
           <AreaChart data={data}>
             <defs>
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
@@ -48,19 +63,18 @@ export function PortfolioValueChart({ data }: { data: ValuePoint[] }) {
             />
             <XAxis
               dataKey="date"
-              className="text-xs"
+              className="text-[10px]"
               tickLine={false}
               axisLine={false}
+              dy={8}
             />
             <YAxis
-              className="text-xs"
+              className="text-[10px]"
               tickLine={false}
               axisLine={false}
+              dx={-8}
               tickFormatter={(v: number) =>
-                new Intl.NumberFormat("pl-PL", {
-                  notation: "compact",
-                  maximumFractionDigits: 0,
-                }).format(v)
+                v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`
               }
             />
             <Tooltip
@@ -68,7 +82,7 @@ export function PortfolioValueChart({ data }: { data: ValuePoint[] }) {
                 backgroundColor: "hsl(var(--card))",
                 border: "1px solid hsl(var(--border))",
                 borderRadius: "8px",
-                fontSize: "13px",
+                fontSize: "12px",
               }}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               formatter={(value: any, name: any) => [
@@ -76,7 +90,7 @@ export function PortfolioValueChart({ data }: { data: ValuePoint[] }) {
                   style: "currency",
                   currency: "PLN",
                 }).format(Number(value)),
-                name === "value" ? "Wartość" : "Zainwestowane",
+                name === "value" ? "Wartosc" : "Zainwestowane",
               ]}
             />
             <Area
@@ -95,7 +109,7 @@ export function PortfolioValueChart({ data }: { data: ValuePoint[] }) {
               strokeWidth={2}
               fill="url(#colorValue)"
               dot={false}
-              activeDot={{ r: 4 }}
+              activeDot={{ r: 4, strokeWidth: 0 }}
             />
           </AreaChart>
         </ResponsiveContainer>

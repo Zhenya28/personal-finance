@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { addInvestment, fetchVWCEData } from "@/actions/investments";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
@@ -42,18 +42,19 @@ export function InvestmentForm() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Dodaj zakup
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form action={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="inv-amount">Kwota (PLN)</Label>
+    <Card className="overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
+      <CardContent className="pt-5">
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
+            <Plus className="h-4 w-4 text-blue-500" />
+          </div>
+          <h3 className="font-semibold text-sm">Dodaj zakup</h3>
+        </div>
+        <form action={handleSubmit} className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-3 items-end">
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-amount" className="text-xs">Kwota (PLN)</Label>
               <Input
                 id="inv-amount"
                 name="amount"
@@ -64,27 +65,27 @@ export function InvestmentForm() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
+                className="h-9"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="inv-date">Data</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-date" className="text-xs">Data</Label>
               <Input
                 id="inv-date"
                 name="date"
                 type="date"
                 defaultValue={today}
                 required
+                className="h-9"
               />
             </div>
-            <div className="flex items-end">
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? "Dodawanie..." : "Kup VWCE"}
-              </Button>
-            </div>
+            <Button type="submit" disabled={loading} className="h-9">
+              {loading ? "Dodaje..." : "Kup VWCE"}
+            </Button>
           </div>
           <input type="hidden" name="ticker" value="VWCE.DE" />
           {data && (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               VWCE: <span className="font-medium">{data.priceEur.toFixed(2)} EUR</span>
               {" · "}
               EUR/PLN: <span className="font-medium">{data.eurPln.toFixed(4)}</span>

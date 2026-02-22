@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { type LucideIcon } from "lucide-react";
 
@@ -10,33 +10,61 @@ interface MetricCardProps {
   trend?: "up" | "down" | "neutral";
 }
 
+const trendConfig = {
+  up: {
+    value: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-500/10",
+    icon: "text-emerald-500",
+  },
+  down: {
+    value: "text-red-500 dark:text-red-400",
+    bg: "bg-red-500/10",
+    icon: "text-red-500",
+  },
+  neutral: {
+    value: "text-foreground",
+    bg: "bg-muted",
+    icon: "text-muted-foreground",
+  },
+};
+
 export function MetricCard({
   title,
   value,
   subtitle,
   icon: Icon,
-  trend,
+  trend = "neutral",
 }: MetricCardProps) {
+  const t = trendConfig[trend];
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {title}
-        </CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div
+    <Card className="relative overflow-hidden">
+      <CardContent className="pt-5 pb-5">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            {title}
+          </p>
+          <div
+            className={cn(
+              "flex items-center justify-center h-8 w-8 rounded-lg",
+              t.bg
+            )}
+          >
+            <Icon className={cn("h-4 w-4", t.icon)} />
+          </div>
+        </div>
+        <p
           className={cn(
-            "text-2xl font-bold",
-            trend === "up" && "text-green-600 dark:text-green-400",
-            trend === "down" && "text-red-600 dark:text-red-400"
+            "text-xl font-bold tracking-tight tabular-nums",
+            t.value
           )}
         >
           {value}
-        </div>
+        </p>
         {subtitle && (
-          <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+          <p className="text-[11px] text-muted-foreground mt-1 truncate">
+            {subtitle}
+          </p>
         )}
       </CardContent>
     </Card>

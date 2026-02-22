@@ -1,15 +1,8 @@
 "use client";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
 import { formatPLN, formatDate, INCOME_CATEGORY_LABELS } from "@/lib/utils";
 import { deleteIncome } from "@/actions/transactions";
@@ -27,67 +20,65 @@ export function IncomeTable({ data }: { data: Income[] }) {
   async function handleDelete(id: string) {
     try {
       await deleteIncome(id);
-      toast.success("Usunięto przychód");
+      toast.success("Usunieto przychod");
     } catch {
-      toast.error("Wystąpił błąd");
+      toast.error("Wystapil blad");
     }
   }
 
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-muted-foreground mb-2">Brak przychodów w tym miesiącu</p>
-        <p className="text-sm text-muted-foreground">
-          Dodaj pierwszy przychód używając formularza powyżej lub naciśnij{" "}
-          <kbd className="px-1 py-0.5 bg-muted rounded text-xs">i</kbd>
-        </p>
-      </div>
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+          <p className="text-muted-foreground mb-1">Brak przychodow w tym miesiacu</p>
+          <p className="text-xs text-muted-foreground">
+            Dodaj pierwszy przychod lub nacisnij{" "}
+            <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">i</kbd>
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Kategoria</TableHead>
-            <TableHead>Opis</TableHead>
-            <TableHead className="text-right">Kwota</TableHead>
-            <TableHead className="w-10" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
+    <Card>
+      <CardContent className="pt-5 px-0">
+        <div className="space-y-0 divide-y divide-border">
           {data.map((income) => (
-            <TableRow key={income.id}>
-              <TableCell className="font-medium">
-                {formatDate(income.date)}
-              </TableCell>
-              <TableCell>
-                <Badge variant="secondary">
+            <div
+              key={income.id}
+              className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-muted/30 transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="shrink-0">
+                  <p className="text-xs font-medium tabular-nums">
+                    {formatDate(income.date)}
+                  </p>
+                </div>
+                <Badge variant="secondary" className="shrink-0 text-[10px]">
                   {INCOME_CATEGORY_LABELS[income.category] || income.category}
                 </Badge>
-              </TableCell>
-              <TableCell className="text-muted-foreground">
-                {income.description || "—"}
-              </TableCell>
-              <TableCell className="text-right font-medium text-green-600 dark:text-green-400">
-                {formatPLN(income.amount)}
-              </TableCell>
-              <TableCell>
+                <span className="text-sm text-muted-foreground truncate">
+                  {income.description || "—"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                  +{formatPLN(income.amount)}
+                </span>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => handleDelete(income.id)}
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  className="h-7 w-7 text-muted-foreground/40 hover:text-destructive"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
-              </TableCell>
-            </TableRow>
+              </div>
+            </div>
           ))}
-        </TableBody>
-      </Table>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
