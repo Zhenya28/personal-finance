@@ -129,7 +129,7 @@ export default function ScanPage() {
     setSaving(true);
     try {
       const cleanTransactions = transactions.map((t) => ({
-        amount: Number(t.amount) || 0,
+        amount: Math.abs(Number(t.amount)) || 0,
         category: t.category || (type === "income" ? "INNE" : "OTHER"),
         description: t.description || "",
         date: t.date || new Date().toISOString().split("T")[0],

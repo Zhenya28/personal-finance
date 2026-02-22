@@ -39,10 +39,13 @@ export async function POST(request: NextRequest) {
     let savedCount = 0;
 
     for (const t of transactions) {
-      const amount = Number(t.amount) || 0;
-      if (amount <= 0) continue;
+      // Use Math.abs — bank screenshots often show negative amounts for expenses
+      const amount = Math.abs(Number(t.amount) || 0);
+      if (amount === 0) continue;
 
       const dateVal = t.date ? new Date(t.date) : new Date();
+
+      console.log(`[scan/save] Saving: ${amount} ${t.category} "${t.description}" ${t.date}`);
 
       if (type === "income") {
         const cat = (t.category || "").toUpperCase();
@@ -70,8 +73,12 @@ export async function POST(request: NextRequest) {
       savedCount++;
     }
 
-
-
+    if (savedCount === 0) {
+      return NextResponse.json(
+        { error: "Żadna transakcja nie została zapisana (kwoty = 0)" },
+        { status: 400 }
+      );
+    }
 
     revalidatePath("/");
     revalidatePath(type === "income" ? "/income" : "/expenses");

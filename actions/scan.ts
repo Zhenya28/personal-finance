@@ -24,7 +24,7 @@ export async function saveScannedIncomes(transactions: ScannedTransaction[]) {
         const category = VALID_INCOME.includes(cat) ? cat : "INNE";
 
         return {
-          amount: Number(t.amount) || 0,
+          amount: Math.abs(Number(t.amount)) || 0,
           category: category as IncomeCategory,
           description: t.description || null,
           date: new Date(t.date || new Date()),
@@ -50,7 +50,7 @@ export async function saveScannedExpenses(transactions: ScannedTransaction[]) {
         const category = VALID_EXPENSE.includes(cat) ? cat : "OTHER";
 
         return {
-          amount: Number(t.amount) || 0,
+          amount: Math.abs(Number(t.amount)) || 0,
           category: category as ExpenseCategory,
           description: t.description || null,
           date: new Date(t.date || new Date()),
