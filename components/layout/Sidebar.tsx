@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -15,6 +15,8 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "./ThemeToggle";
+import { MonthFilter } from "@/components/income/MonthFilter";
+import { Suspense } from "react";
 
 const navGroups = [
   {
@@ -26,12 +28,12 @@ const navGroups = [
     items: [
       { href: "/income", label: "Przychody", icon: TrendingUp },
       { href: "/expenses", label: "Wydatki", icon: TrendingDown },
-      { href: "/savings", label: "Oszczednosci", icon: PiggyBank },
+      { href: "/savings", label: "Oszczędności", icon: PiggyBank },
       { href: "/investments", label: "Inwestycje", icon: LineChart },
     ],
   },
   {
-    label: "Narzedzia",
+    label: "Narzędzia",
     items: [
       { href: "/calculator", label: "Kalkulator", icon: Calculator },
       { href: "/scan", label: "Skaner AI", icon: ScanLine },
@@ -40,6 +42,45 @@ const navGroups = [
 ];
 
 const allNavItems = navGroups.flatMap((g) => g.items);
+
+function NavLink({
+  href,
+  label,
+  icon: Icon,
+  isActive,
+  onClose,
+}: {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  isActive: boolean;
+  onClose?: () => void;
+}) {
+  const searchParams = useSearchParams();
+  const month = searchParams.get("month");
+  const linkHref = month ? `${href}?month=${month}` : href;
+
+  return (
+    <Link
+      href={linkHref}
+      onClick={onClose}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        isActive
+          ? "bg-primary/10 text-primary"
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+      )}
+    >
+      <Icon
+        className={cn(
+          "h-4 w-4",
+          isActive ? "text-primary" : "text-muted-foreground/70"
+        )}
+      />
+      {label}
+    </Link>
+  );
+}
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
@@ -67,7 +108,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         )}
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 pt-4 space-y-6">
+      {/* Global Month Filter */}
+      <div className="px-4 py-3">
+        <Suspense>
+          <MonthFilter />
+        </Suspense>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-3 pt-2 space-y-6">
         {navGroups.map((group) => (
           <div key={group.label}>
             <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
@@ -80,27 +128,15 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                     ? pathname === "/"
                     : pathname.startsWith(item.href);
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={onClose}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    )}
-                  >
-                    <item.icon
-                      className={cn(
-                        "h-4 w-4",
-                        isActive
-                          ? "text-primary"
-                          : "text-muted-foreground/70"
-                      )}
+                  <Suspense key={item.href}>
+                    <NavLink
+                      href={item.href}
+                      label={item.label}
+                      icon={item.icon}
+                      isActive={isActive}
+                      onClose={onClose}
                     />
-                    {item.label}
-                  </Link>
+                  </Suspense>
                 );
               })}
             </div>
@@ -130,21 +166,14 @@ export function MobileNav() {
             ? pathname === "/"
             : pathname.startsWith(item.href);
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition-colors",
-              isActive
-                ? "text-primary font-semibold"
-                : "text-muted-foreground"
-            )}
-          >
-            <item.icon
-              className={cn("h-5 w-5", isActive && "text-primary")}
+          <Suspense key={item.href}>
+            <NavLink
+              href={item.href}
+              label={item.label}
+              icon={item.icon}
+              isActive={isActive}
             />
-            <span>{item.label}</span>
-          </Link>
+          </Suspense>
         );
       })}
     </nav>

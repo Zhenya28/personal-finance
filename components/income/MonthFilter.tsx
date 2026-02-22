@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Select,
   SelectContent,
@@ -9,8 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getMonthLabel, getCurrentMonth } from "@/lib/utils";
+import { Calendar } from "lucide-react";
 
-// Generate all months for 2026
 function getMonths2026(): string[] {
   const months: string[] = [];
   for (let m = 1; m <= 12; m++) {
@@ -21,9 +21,10 @@ function getMonths2026(): string[] {
 
 export function MonthFilter() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentMonth = searchParams.get("month") || getCurrentMonth();
-  const now = getCurrentMonth(); // e.g. "2026-02"
+  const now = getCurrentMonth();
   const months = getMonths2026();
 
   return (
@@ -32,10 +33,11 @@ export function MonthFilter() {
       onValueChange={(value) => {
         const params = new URLSearchParams(searchParams.toString());
         params.set("month", value);
-        router.push(`?${params.toString()}`);
+        router.push(`${pathname}?${params.toString()}`);
       }}
     >
-      <SelectTrigger className="w-48">
+      <SelectTrigger className="w-44 h-8 text-xs">
+        <Calendar className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

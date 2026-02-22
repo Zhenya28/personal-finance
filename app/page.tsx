@@ -22,9 +22,12 @@ import {
 
 export const revalidate = 60;
 
-async function getOverviewData() {
-  const currentMonth = getCurrentMonth();
-  const [year, month] = currentMonth.split("-").map(Number);
+interface Props {
+  searchParams: Promise<{ month?: string }>;
+}
+
+async function getOverviewData(selectedMonth: string) {
+  const [year, month] = selectedMonth.split("-").map(Number);
   const startOfMonth = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
 
@@ -80,7 +83,8 @@ async function getOverviewData() {
       incomeBreakdown[cat] = entry._sum.amount || 0;
     }
   }
-  const totalIncome = incomeBreakdown.WYPLATA_1 + incomeBreakdown.WYPLATA_2 + incomeBreakdown.INNE;
+  const totalIncome =
+    incomeBreakdown.WYPLATA_1 + incomeBreakdown.WYPLATA_2 + incomeBreakdown.INNE;
 
   const totalExpenses = expensesThisMonth._sum.amount || 0;
   const netBalance = totalIncome - totalExpenses;
@@ -130,7 +134,7 @@ async function getOverviewData() {
     amount: e._sum.amount || 0,
   }));
 
-  const monthLabel = getMonthLabel(currentMonth);
+  const monthLabel = getMonthLabel(selectedMonth);
 
   return {
     totalIncome,
@@ -145,8 +149,10 @@ async function getOverviewData() {
   };
 }
 
-export default async function OverviewPage() {
-  const data = await getOverviewData();
+export default async function OverviewPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const selectedMonth = params.month || getCurrentMonth();
+  const data = await getOverviewData(selectedMonth);
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -184,7 +190,7 @@ export default async function OverviewPage() {
           trend={data.netBalance >= 0 ? "up" : "down"}
         />
         <MetricCard
-          title="Oszczednosci"
+          title="Oszczędności"
           value={formatCurrency(data.totalSavings, "PLN")}
           icon={PiggyBank}
           trend="neutral"
