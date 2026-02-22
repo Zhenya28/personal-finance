@@ -4,17 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getQuote, getEurPlnRate } from "@/lib/yahoo";
 
-async function updateDailyCheckin() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  await prisma.dailyCheckin.upsert({
-    where: { date: today },
-    update: {},
-    create: { date: today },
-  });
-}
-
 export async function addInvestment(formData: FormData) {
   const amountPln = parseFloat(formData.get("amount") as string);
   const date = new Date(formData.get("date") as string);
@@ -32,7 +21,6 @@ export async function addInvestment(formData: FormData) {
     throw new Error("Nie udało się pobrać kursu EUR/PLN");
   }
 
-  // pricePerUnit in PLN = VWCE EUR price * EUR/PLN rate
   const pricePerUnit = quote.price * eurPln;
   const units = amountPln / pricePerUnit;
 
@@ -40,7 +28,6 @@ export async function addInvestment(formData: FormData) {
     data: { ticker, units, pricePerUnit, commission: 0, date },
   });
 
-  await updateDailyCheckin();
   revalidatePath("/");
   revalidatePath("/investments");
 }

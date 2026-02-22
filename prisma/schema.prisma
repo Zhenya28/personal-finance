@@ -42,13 +42,15 @@ model Expense {
   createdAt   DateTime        @default(now())
 }
 
-model BudgetLimit {
-  id          String          @id @default(cuid())
-  category    ExpenseCategory
-  limitAmount Float
-  month       String
 
-  @@unique([category, month])
+
+
+enum Currency {
+  PLN
+  USD
+  EUR
+  GBP
+  CHF
 }
 
 model Investment {
@@ -61,22 +63,11 @@ model Investment {
   createdAt    DateTime @default(now())
 }
 
-model SavingsGoal {
-  id            String    @id @default(cuid())
-  name          String
-  targetAmount  Float
-  currentAmount Float     @default(0)
-  deadline      DateTime?
-  createdAt     DateTime  @default(now())
-}
-
-model DailyCheckin {
+model SavingsAccount {
   id        String   @id @default(cuid())
-  date      DateTime @unique
+  name      String
+  currency  Currency @default(PLN)
+  balance   Float    @default(0)
+  updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
-}
-
-model Settings {
-  id         String @id @default("default")
-  hourlyRate Float  @default(0)
 }

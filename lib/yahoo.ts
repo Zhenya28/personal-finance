@@ -47,6 +47,18 @@ export async function getEurPlnRate(): Promise<number | null> {
   }
 }
 
+export async function getFxRate(from: string, to: string): Promise<number | null> {
+  if (from === to) return 1;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = await yf.quote(`${from}${to}=X`);
+    return result?.regularMarketPrice ?? null;
+  } catch (e) {
+    console.error(`Failed to fetch ${from}/${to} rate:`, e);
+    return null;
+  }
+}
+
 export async function getHistorical(
   ticker: string,
   period: "1mo" | "3mo" | "6mo" | "1y" | "2y" | "5y" = "1y"

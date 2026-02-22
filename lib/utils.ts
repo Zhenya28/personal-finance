@@ -16,6 +16,15 @@ export function formatPLN(amount: number): string {
   }).format(amount);
 }
 
+export function formatCurrency(amount: number, currency: string): string {
+  return new Intl.NumberFormat("pl-PL", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 export function formatDate(date: Date | string): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return format(d, "dd.MM.yyyy", { locale: pl });

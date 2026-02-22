@@ -7,7 +7,7 @@ import {
   TrendingUp,
   TrendingDown,
   LineChart,
-  Target,
+  PiggyBank,
   Calculator,
   ScanLine,
   X,
@@ -21,7 +21,7 @@ const navItems = [
   { href: "/income", label: "Przychody", icon: TrendingUp },
   { href: "/expenses", label: "Wydatki", icon: TrendingDown },
   { href: "/investments", label: "Inwestycje", icon: LineChart },
-  { href: "/goals", label: "Cele", icon: Target },
+  { href: "/savings", label: "Oszczędności", icon: PiggyBank },
   { href: "/calculator", label: "Kalkulator", icon: Calculator },
   { href: "/scan", label: "Skaner AI", icon: ScanLine },
 ];

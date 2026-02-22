@@ -70,14 +70,8 @@ export async function POST(request: NextRequest) {
       savedCount++;
     }
 
-    // Daily checkin
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    await prisma.dailyCheckin.upsert({
-      where: { date: today },
-      update: {},
-      create: { date: today },
-    });
+
+
 
     revalidatePath("/");
     revalidatePath(type === "income" ? "/income" : "/expenses");
