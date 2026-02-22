@@ -5,7 +5,7 @@ import { SavingsAccountCard } from "@/components/savings/SavingsAccountCard";
 import { getFxRate } from "@/lib/yahoo";
 import { PiggyBank } from "lucide-react";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 async function getSavingsData() {
   const accounts = await prisma.savingsAccount.findMany({

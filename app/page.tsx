@@ -20,7 +20,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 interface Props {
   searchParams: Promise<{ month?: string }>;

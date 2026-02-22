@@ -16,7 +16,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-export const revalidate = 300;
+export const revalidate = 0;
 
 export default async function InvestmentsPage() {
   const investments = await prisma.investment.findMany({

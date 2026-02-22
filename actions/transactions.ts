@@ -14,8 +14,8 @@ export async function addIncome(formData: FormData) {
     data: { amount, category, description, date },
   });
 
-  revalidatePath("/");
-  revalidatePath("/income");
+  revalidatePath("/", "layout");
+  revalidatePath("/income", "layout");
 }
 
 export async function addExpense(formData: FormData) {
@@ -28,8 +28,8 @@ export async function addExpense(formData: FormData) {
     data: { amount, category, description, date },
   });
 
-  revalidatePath("/");
-  revalidatePath("/expenses");
+  revalidatePath("/", "layout");
+  revalidatePath("/expenses", "layout");
 }
 
 export async function duplicateExpense(id: string) {
@@ -45,18 +45,18 @@ export async function duplicateExpense(id: string) {
     },
   });
 
-  revalidatePath("/");
-  revalidatePath("/expenses");
+  revalidatePath("/", "layout");
+  revalidatePath("/expenses", "layout");
 }
 
 export async function deleteIncome(id: string) {
   await prisma.income.delete({ where: { id } });
-  revalidatePath("/");
-  revalidatePath("/income");
+  revalidatePath("/", "layout");
+  revalidatePath("/income", "layout");
 }
 
 export async function deleteExpense(id: string) {
   await prisma.expense.delete({ where: { id } });
-  revalidatePath("/");
-  revalidatePath("/expenses");
+  revalidatePath("/", "layout");
+  revalidatePath("/expenses", "layout");
 }

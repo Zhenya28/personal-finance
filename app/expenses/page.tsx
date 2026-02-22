@@ -7,7 +7,7 @@ import { MetricCard } from "@/components/overview/MetricCard";
 import { TrendingDown, Receipt, ShoppingCart } from "lucide-react";
 import { Suspense } from "react";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 interface Props {
   searchParams: Promise<{ month?: string }>;

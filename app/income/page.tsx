@@ -13,7 +13,7 @@ import { MonthFilter } from "@/components/income/MonthFilter";
 import { DollarSign, TrendingUp, Award } from "lucide-react";
 import { Suspense } from "react";
 
-export const revalidate = 60;
+export const revalidate = 0;
 
 interface Props {
   searchParams: Promise<{ month?: string }>;
