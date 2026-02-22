@@ -11,7 +11,7 @@ import { CashflowChart } from "@/components/overview/CashflowChart";
 import { ExpensePieChart } from "@/components/overview/ExpensePieChart";
 import { fetchVWCEData } from "@/actions/investments";
 import { getFxRate } from "@/lib/yahoo";
-import { Wallet, LineChart, PiggyBank } from "lucide-react";
+import { Wallet, LineChart, PiggyBank, TrendingUp, TrendingDown } from "lucide-react";
 
 export const revalidate = 60;
 
@@ -120,6 +120,8 @@ async function getOverviewData() {
   }));
 
   return {
+    totalIncome,
+    totalExpenses,
     netBalance,
     portfolioValue,
     totalSavings,
@@ -135,7 +137,19 @@ export default async function OverviewPage() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold tracking-tight">Overview</h2>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <MetricCard
+          title="Przychody"
+          value={formatPLN(data.totalIncome)}
+          icon={TrendingUp}
+          trend="up"
+        />
+        <MetricCard
+          title="Wydatki"
+          value={formatPLN(data.totalExpenses)}
+          icon={TrendingDown}
+          trend="down"
+        />
         <MetricCard
           title="Saldo netto"
           value={formatPLN(data.netBalance)}
