@@ -10,7 +10,7 @@ import { ScoreCard } from "@/components/overview/ScoreCard";
 import { CashflowChart } from "@/components/overview/CashflowChart";
 import { ExpensePieChart } from "@/components/overview/ExpensePieChart";
 import { SmartInsights } from "@/components/overview/SmartInsights";
-import { fetchVWCEPrice } from "@/actions/investments";
+import { fetchVWCEData } from "@/actions/investments";
 import {
   Wallet,
   LineChart,
@@ -46,7 +46,7 @@ async function getOverviewData() {
     foodPrevMonthAgg,
     expensesByCategory,
     budgetLimits,
-    currentPrice,
+    vwceData,
     // For cashflow chart — fetch all income & expenses in 6-month range at once
     allIncomes6m,
     allExpenses6m,
@@ -88,7 +88,7 @@ async function getOverviewData() {
     prisma.budgetLimit.findMany({
       where: { month: currentMonth },
     }),
-    fetchVWCEPrice(),
+    fetchVWCEData(),
     // Fetch raw records for the 6-month range instead of 12 separate aggregate queries
     prisma.income.findMany({
       where: { date: { gte: sixMonthsAgo, lte: endOfMonth } },
@@ -106,12 +106,14 @@ async function getOverviewData() {
   const netBalance = totalIncome - totalExpenses;
 
   const totalUnits = investments.reduce((sum, inv) => sum + inv.units, 0);
+  // pricePerUnit is stored in PLN
   const totalInvested = investments.reduce(
-    (sum, inv) => sum + inv.units * inv.pricePerUnit + inv.commission,
+    (sum, inv) => sum + inv.units * inv.pricePerUnit,
     0
   );
-  const portfolioValue = currentPrice
-    ? totalUnits * currentPrice
+  const currentPricePln = vwceData ? vwceData.pricePln : null;
+  const portfolioValue = currentPricePln
+    ? totalUnits * currentPricePln
     : totalInvested;
 
   const totalSavings = savingsGoals.reduce(

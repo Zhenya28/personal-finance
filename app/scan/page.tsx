@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import {
   INCOME_CATEGORY_LABELS,
   formatPLN,
 } from "@/lib/utils";
-import { saveScannedIncomes, saveScannedExpenses } from "@/actions/scan";
+// save via API route, not server action
 import { toast } from "sonner";
 import {
   ScanLine,
@@ -42,6 +43,7 @@ interface Transaction {
 type ScanType = "income" | "expense";
 
 export default function ScanPage() {
+  const router = useRouter();
   const [type, setType] = useState<ScanType>("expense");
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -100,14 +102,14 @@ export default function ScanPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.error || "Błąd skanowania");
+        alert(`Blad skanowania: ${data.error || res.status}`);
         return;
       }
 
       if (data.transactions.length === 0) {
-        toast.info("Nie znaleziono transakcji na obrazku");
+        alert("Nie znaleziono transakcji na obrazku");
       } else {
-        toast.success(`Znaleziono ${data.transactions.length} transakcji`);
+        alert(`Znaleziono ${data.transactions.length} transakcji: ${JSON.stringify(data.transactions)}`);
       }
 
       setTransactions(data.transactions);
@@ -120,23 +122,38 @@ export default function ScanPage() {
   };
 
   const handleSave = async () => {
-    if (transactions.length === 0) return;
+    if (transactions.length === 0) {
+      alert("Brak transakcji do zapisania");
+      return;
+    }
     setSaving(true);
     try {
-      if (type === "income") {
-        await saveScannedIncomes(transactions);
-      } else {
-        await saveScannedExpenses(transactions);
+      const cleanTransactions = transactions.map((t) => ({
+        amount: Number(t.amount) || 0,
+        category: t.category || (type === "income" ? "INNE" : "OTHER"),
+        description: t.description || "",
+        date: t.date || new Date().toISOString().split("T")[0],
+      }));
+
+      const res = await fetch("/api/scan/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transactions: cleanTransactions, type }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(`Blad zapisu: ${data.error || res.status}`);
+        return;
       }
-      toast.success(
-        `Dodano ${transactions.length} ${type === "income" ? "przychodów" : "wydatków"}`
-      );
-      setTransactions([]);
-      setImage(null);
-      setImagePreview(null);
-      setScanned(false);
-    } catch {
-      toast.error("Błąd zapisu");
+
+      alert(`Zapisano ${data.saved} transakcji! Przekierowuje...`);
+      // Full page reload to guarantee fresh data
+      window.location.href = type === "income" ? "/income" : "/expenses";
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Nieznany blad";
+      alert(`Blad: ${msg}`);
     } finally {
       setSaving(false);
     }

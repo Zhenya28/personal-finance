@@ -52,9 +52,8 @@ export function InvestmentTable({ data }: { data: Investment[] }) {
             <TableHead>Data</TableHead>
             <TableHead>Ticker</TableHead>
             <TableHead className="text-right">Jednostki</TableHead>
-            <TableHead className="text-right">Cena/szt</TableHead>
-            <TableHead className="text-right">Prowizja</TableHead>
-            <TableHead className="text-right">Wartość</TableHead>
+            <TableHead className="text-right">Cena/szt (PLN)</TableHead>
+            <TableHead className="text-right">Kwota (PLN)</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
@@ -68,9 +67,6 @@ export function InvestmentTable({ data }: { data: Investment[] }) {
               <TableCell className="text-right">{inv.units.toFixed(4)}</TableCell>
               <TableCell className="text-right">
                 {formatPLN(inv.pricePerUnit)}
-              </TableCell>
-              <TableCell className="text-right">
-                {formatPLN(inv.commission)}
               </TableCell>
               <TableCell className="text-right font-medium">
                 {formatPLN(inv.units * inv.pricePerUnit)}
