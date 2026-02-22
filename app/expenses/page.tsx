@@ -69,7 +69,9 @@ export default async function ExpensesPage({ searchParams }: Props) {
         />
       </div>
 
-      <ExpenseForm />
+      <Suspense>
+        <ExpenseForm />
+      </Suspense>
       <ExpenseTable data={expenses} />
     </div>
   );

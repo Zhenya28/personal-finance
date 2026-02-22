@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,17 +17,32 @@ import { addIncome } from "@/actions/transactions";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
+function getDefaultDate(monthParam: string | null): string {
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+
+  if (!monthParam) return todayStr;
+
+  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  if (monthParam === currentMonth) return todayStr;
+
+  // Default to 1st of selected month
+  return `${monthParam}-01`;
+}
+
 export function IncomeForm() {
   const [loading, setLoading] = useState(false);
-  const today = new Date().toISOString().split("T")[0];
+  const searchParams = useSearchParams();
+  const monthParam = searchParams.get("month");
+  const defaultDate = getDefaultDate(monthParam);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     try {
       await addIncome(formData);
-      toast.success("Dodano przychod");
+      toast.success("Dodano przychód");
     } catch {
-      toast.error("Wystapil blad");
+      toast.error("Wystąpił błąd");
     } finally {
       setLoading(false);
     }
@@ -40,7 +56,7 @@ export function IncomeForm() {
           <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/10">
             <Plus className="h-4 w-4 text-emerald-500" />
           </div>
-          <h3 className="font-semibold text-sm">Dodaj przychod</h3>
+          <h3 className="font-semibold text-sm">Dodaj przychód</h3>
         </div>
         <form action={handleSubmit} className="grid gap-3 sm:grid-cols-5 items-end">
           <div className="space-y-1.5">
@@ -63,8 +79,8 @@ export function IncomeForm() {
                 <SelectValue placeholder="Wybierz" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="WYPLATA_1">Wyplata 1</SelectItem>
-                <SelectItem value="WYPLATA_2">Wyplata 2</SelectItem>
+                <SelectItem value="WYPLATA_1">Wypłata 1</SelectItem>
+                <SelectItem value="WYPLATA_2">Wypłata 2</SelectItem>
                 <SelectItem value="INNE">Inne</SelectItem>
               </SelectContent>
             </Select>
@@ -74,7 +90,7 @@ export function IncomeForm() {
             <Input
               id="income-desc"
               name="description"
-              placeholder="np. Wyplata za styczen"
+              placeholder="np. Wypłata za styczeń"
               className="h-9"
             />
           </div>
@@ -84,13 +100,14 @@ export function IncomeForm() {
               id="income-date"
               name="date"
               type="date"
-              defaultValue={today}
+              defaultValue={defaultDate}
+              key={defaultDate}
               required
               className="h-9"
             />
           </div>
           <Button type="submit" disabled={loading} className="h-9">
-            {loading ? "Dodaje..." : "Dodaj"}
+            {loading ? "Dodaję..." : "Dodaj"}
           </Button>
         </form>
       </CardContent>

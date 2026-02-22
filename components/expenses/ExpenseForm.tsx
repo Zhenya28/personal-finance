@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,9 +20,25 @@ import { EXPENSE_CATEGORY_LABELS } from "@/lib/utils";
 
 const categories = Object.entries(EXPENSE_CATEGORY_LABELS);
 
+function getDefaultDate(monthParam: string | null): string {
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+
+  if (!monthParam) return todayStr;
+
+  // If selected month matches current month, use today
+  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+  if (monthParam === currentMonth) return todayStr;
+
+  // Otherwise default to 1st of selected month
+  return `${monthParam}-01`;
+}
+
 export function ExpenseForm() {
   const [loading, setLoading] = useState(false);
-  const today = new Date().toISOString().split("T")[0];
+  const searchParams = useSearchParams();
+  const monthParam = searchParams.get("month");
+  const defaultDate = getDefaultDate(monthParam);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -29,7 +46,7 @@ export function ExpenseForm() {
       await addExpense(formData);
       toast.success("Dodano wydatek");
     } catch {
-      toast.error("Wystapil blad");
+      toast.error("Wystapił błąd");
     } finally {
       setLoading(false);
     }
@@ -89,13 +106,14 @@ export function ExpenseForm() {
               id="expense-date"
               name="date"
               type="date"
-              defaultValue={today}
+              defaultValue={defaultDate}
+              key={defaultDate}
               required
               className="h-9"
             />
           </div>
           <Button type="submit" disabled={loading} className="h-9">
-            {loading ? "Dodaje..." : "Dodaj"}
+            {loading ? "Dodaję..." : "Dodaj"}
           </Button>
         </form>
       </CardContent>

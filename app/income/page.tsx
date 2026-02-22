@@ -126,7 +126,9 @@ export default async function IncomePage({ searchParams }: Props) {
         />
       </div>
 
-      <IncomeForm />
+      <Suspense>
+        <IncomeForm />
+      </Suspense>
       <IncomeTable data={incomes} />
       <IncomeChart data={chartData} />
     </div>
