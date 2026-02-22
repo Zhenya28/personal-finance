@@ -18,16 +18,21 @@ function buildPrompt(type: "income" | "expense") {
   const categories =
     type === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
   const categoryList = categories.join(", ");
+  const today = new Date().toISOString().split("T")[0]; // e.g. "2026-02-22"
+  const currentYear = new Date().getFullYear(); // e.g. 2026
 
   return `Analizujesz zdjęcie z aplikacji bankowej lub potwierdzenie transakcji. Wyciągnij WSZYSTKIE transakcje widoczne na obrazku.
+
+DZISIEJSZA DATA: ${today}
+BIEŻĄCY ROK: ${currentYear}
 
 Typ transakcji: ${type === "income" ? "PRZYCHÓD (wpływy na konto)" : "WYDATEK (obciążenia konta)"}
 
 Dla każdej transakcji podaj:
-- "amount": kwota jako liczba (bez walut, np. 125.50)
+- "amount": kwota jako liczba DODATNIA (bez walut, bez minusa, np. 125.50)
 - "category": jedna z kategorii: ${categoryList}
 - "description": krótki opis transakcji (np. "Biedronka", "Netflix", "Przelew od Jan Kowalski")
-- "date": data w formacie YYYY-MM-DD
+- "date": data w formacie YYYY-MM-DD. WAŻNE: Jeśli na zdjęciu nie widać roku, użyj roku ${currentYear}.
 
 Dopasuj kategorię najlepiej jak potrafisz na podstawie opisu transakcji.
 ${
@@ -50,10 +55,11 @@ WAŻNE:
 - Zwróć TYLKO poprawny JSON (tablica obiektów), bez żadnego innego tekstu
 - Jeśli nie widzisz transakcji, zwróć pustą tablicę []
 - Ignoruj salda, tylko wykrywaj transakcje
-- Kwoty zawsze jako liczby dodatnie
+- Kwoty zawsze jako LICZBY DODATNIE (bez znaku minus!)
+- Daty: jeśli brak roku na zdjęciu, użyj ${currentYear}
 
 Przykład odpowiedzi:
-[{"amount": 125.50, "category": "${categories[0]}", "description": "Biedronka", "date": "2026-02-15"}]`;
+[{"amount": 125.50, "category": "${categories[0]}", "description": "Biedronka", "date": "${currentYear}-02-15"}]`;
 }
 
 export async function POST(request: NextRequest) {

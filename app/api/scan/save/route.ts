@@ -44,6 +44,12 @@ export async function POST(request: NextRequest) {
       if (amount === 0) continue;
 
       const dateVal = t.date ? new Date(t.date) : new Date();
+      
+      // Fix wrong year — Gemini sometimes defaults to 2024 when bank shows only day/month
+      const currentYear = new Date().getFullYear();
+      if (dateVal.getFullYear() < currentYear) {
+        dateVal.setFullYear(currentYear);
+      }
 
       console.log(`[scan/save] Saving: ${amount} ${t.category} "${t.description}" ${t.date}`);
 
