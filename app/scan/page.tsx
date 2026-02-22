@@ -102,14 +102,14 @@ export default function ScanPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(`Blad skanowania: ${data.error || res.status}`);
+        toast.error(data.error || `Błąd skanowania (${res.status})`);
         return;
       }
 
       if (data.transactions.length === 0) {
-        alert("Nie znaleziono transakcji na obrazku");
+        toast.info("Nie znaleziono transakcji na obrazku");
       } else {
-        alert(`Znaleziono ${data.transactions.length} transakcji: ${JSON.stringify(data.transactions)}`);
+        toast.success(`Znaleziono ${data.transactions.length} transakcji`);
       }
 
       setTransactions(data.transactions);
@@ -123,7 +123,7 @@ export default function ScanPage() {
 
   const handleSave = async () => {
     if (transactions.length === 0) {
-      alert("Brak transakcji do zapisania");
+      toast.error("Brak transakcji do zapisania");
       return;
     }
     setSaving(true);
@@ -135,25 +135,54 @@ export default function ScanPage() {
         date: t.date || new Date().toISOString().split("T")[0],
       }));
 
+      console.log("[scan] Saving transactions:", JSON.stringify(cleanTransactions));
+
       const res = await fetch("/api/scan/save", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        },
         body: JSON.stringify({ transactions: cleanTransactions, type }),
       });
 
-      const data = await res.json();
+      const responseText = await res.text();
+      console.log("[scan] Save response:", res.status, responseText);
 
-      if (!res.ok) {
-        alert(`Blad zapisu: ${data.error || res.status}`);
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch {
+        toast.error(`Błąd parsowania odpowiedzi: ${responseText.substring(0, 100)}`);
         return;
       }
 
-      alert(`Zapisano ${data.saved} transakcji! Przekierowuje...`);
-      // Full page reload to guarantee fresh data
-      window.location.href = type === "income" ? "/income" : "/expenses";
+      if (!res.ok) {
+        toast.error(`Błąd zapisu (${res.status}): ${data.error || "Nieznany błąd"}`);
+        return;
+      }
+
+      if (data.saved === 0) {
+        toast.error("Żadna transakcja nie została zapisana");
+        return;
+      }
+
+      toast.success(`Zapisano ${data.saved} ${type === "income" ? "przychodów" : "wydatków"}!`);
+      
+      // Clear state and redirect
+      setTransactions([]);
+      setImage(null);
+      setImagePreview(null);
+      setScanned(false);
+      
+      // Redirect after short delay to let toast display
+      setTimeout(() => {
+        window.location.href = type === "income" ? "/income" : "/expenses";
+      }, 1000);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Nieznany blad";
-      alert(`Blad: ${msg}`);
+      const msg = e instanceof Error ? e.message : "Nieznany błąd";
+      console.error("[scan] Save error:", e);
+      toast.error(`Błąd sieci: ${msg}`);
     } finally {
       setSaving(false);
     }
