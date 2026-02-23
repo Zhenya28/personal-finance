@@ -21,15 +21,20 @@ export default async function ExpensesPage({ searchParams }: Props) {
   const startOfMonth = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
 
-  const [expenses, recurringTemplates] = await Promise.all([
-    prisma.expense.findMany({
-      where: { date: { gte: startOfMonth, lte: endOfMonth } },
-      orderBy: { date: "desc" },
-    }),
-    prisma.recurringExpense.findMany({
+  const expenses = await prisma.expense.findMany({
+    where: { date: { gte: startOfMonth, lte: endOfMonth } },
+    orderBy: { date: "desc" },
+  });
+
+  // RecurringExpense table might not exist yet if DB hasn't been pushed
+  let recurringTemplates: { id: string; amount: number; category: string; description: string | null; dayOfMonth: number; active: boolean }[] = [];
+  try {
+    recurringTemplates = await prisma.recurringExpense.findMany({
       orderBy: { dayOfMonth: "asc" },
-    }),
-  ]);
+    });
+  } catch {
+    // Table doesn't exist yet — silently continue
+  }
 
   const totalThisMonth = expenses.reduce((sum, e) => sum + e.amount, 0);
   const transactionCount = expenses.length;
