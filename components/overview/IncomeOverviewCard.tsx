@@ -7,6 +7,7 @@ interface IncomeOverviewCardProps {
   wyplata1: number;
   wyplata2: number;
   inne: number;
+  trendPct?: number | null;
 }
 
 export function IncomeOverviewCard({
@@ -14,7 +15,12 @@ export function IncomeOverviewCard({
   wyplata1,
   wyplata2,
   inne,
+  trendPct,
 }: IncomeOverviewCardProps) {
+  const trendText = trendPct !== null && trendPct !== undefined
+    ? `${trendPct >= 0 ? "↑" : "↓"} ${Math.abs(trendPct).toFixed(0)}% vs poprzedni miesiąc`
+    : undefined;
+
   return (
     <Card className="relative overflow-hidden">
       <CardContent className="pt-5 pb-5">
@@ -29,6 +35,9 @@ export function IncomeOverviewCard({
         <p className="text-xl font-bold tracking-tight tabular-nums text-emerald-600 dark:text-emerald-400">
           {formatPLN(total)}
         </p>
+        {trendText && (
+          <p className="text-[11px] text-muted-foreground mt-0.5">{trendText}</p>
+        )}
         <div className="mt-3 space-y-1.5">
           <div className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">Wypłata 1 <span className="opacity-50">(10.)</span></span>
@@ -47,3 +56,4 @@ export function IncomeOverviewCard({
     </Card>
   );
 }
+

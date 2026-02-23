@@ -1,10 +1,9 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Trash2 } from "lucide-react";
 import { formatPLN, formatDate } from "@/lib/utils";
 import { deleteInvestment } from "@/actions/investments";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { toast } from "sonner";
 
 interface Investment {
@@ -73,14 +72,7 @@ export function InvestmentTable({ data }: { data: Investment[] }) {
                     {formatPLN(inv.pricePerUnit)}/szt
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(inv.id)}
-                  className="h-7 w-7 text-muted-foreground/40 hover:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                <ConfirmDeleteDialog onConfirm={() => handleDelete(inv.id)} />
               </div>
             </div>
           ))}

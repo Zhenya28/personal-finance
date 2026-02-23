@@ -8,14 +8,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getMonthLabel, getCurrentMonth } from "@/lib/utils";
+import { getMonthLabel, getCurrentMonth, formatMonth } from "@/lib/utils";
 import { Calendar } from "lucide-react";
 
-function getMonths2026(): string[] {
+function getAvailableMonths(): string[] {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
   const months: string[] = [];
-  for (let m = 1; m <= 12; m++) {
-    months.push(`2026-${String(m).padStart(2, "0")}`);
+
+  // Previous year (all 12 months)
+  for (let m = 0; m <= 11; m++) {
+    months.push(formatMonth(new Date(currentYear - 1, m, 1)));
   }
+  // Current year up to current month
+  for (let m = 0; m <= currentMonth; m++) {
+    months.push(formatMonth(new Date(currentYear, m, 1)));
+  }
+
   return months;
 }
 
@@ -25,7 +35,7 @@ export function MonthFilter() {
   const searchParams = useSearchParams();
   const currentMonth = searchParams.get("month") || getCurrentMonth();
   const now = getCurrentMonth();
-  const months = getMonths2026();
+  const months = getAvailableMonths();
 
   return (
     <Select

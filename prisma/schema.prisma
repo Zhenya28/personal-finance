@@ -71,3 +71,13 @@ model SavingsAccount {
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
 }
+
+model RecurringExpense {
+  id          String          @id @default(cuid())
+  amount      Float
+  category    ExpenseCategory
+  description String?
+  dayOfMonth  Int             @default(1)
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+}

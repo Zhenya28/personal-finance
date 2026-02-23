@@ -3,9 +3,10 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Pencil, Check, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { updateSavingsBalance, deleteSavingsAccount } from "@/actions/savings";
+import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
 import { toast } from "sonner";
 
 const CURRENCY_CONFIG: Record<string, { gradient: string; bg: string; text: string; symbol: string }> = {
@@ -45,8 +46,7 @@ export function SavingsAccountCard({ id, name, currency, balance }: SavingsAccou
     });
   };
 
-  const handleDelete = () => {
-    if (!confirm("Usunac to konto oszczednosciowe?")) return;
+  const handleDelete = async () => {
     startTransition(async () => {
       await deleteSavingsAccount(id);
       toast.success("Konto usuniete");
@@ -73,9 +73,10 @@ export function SavingsAccountCard({ id, name, currency, balance }: SavingsAccou
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/40 hover:text-foreground" onClick={() => { setEditing(true); setNewBalance(balance.toString()); }}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/40 hover:text-destructive" onClick={handleDelete} disabled={isPending}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                <ConfirmDeleteDialog
+                  onConfirm={handleDelete}
+                  description="Na pewno chcesz usunac to konto oszczednosciowe?"
+                />
               </>
             )}
           </div>

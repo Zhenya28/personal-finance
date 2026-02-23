@@ -18,6 +18,22 @@ export async function addIncome(formData: FormData) {
   revalidatePath("/income", "layout");
 }
 
+export async function editIncome(formData: FormData) {
+  const id = formData.get("id") as string;
+  const amount = parseFloat(formData.get("amount") as string);
+  const category = formData.get("category") as IncomeCategory;
+  const description = (formData.get("description") as string) || null;
+  const date = new Date(formData.get("date") as string);
+
+  await prisma.income.update({
+    where: { id },
+    data: { amount, category, description, date },
+  });
+
+  revalidatePath("/", "layout");
+  revalidatePath("/income", "layout");
+}
+
 export async function addExpense(formData: FormData) {
   const amount = parseFloat(formData.get("amount") as string);
   const category = formData.get("category") as ExpenseCategory;
@@ -25,6 +41,22 @@ export async function addExpense(formData: FormData) {
   const date = new Date(formData.get("date") as string);
 
   await prisma.expense.create({
+    data: { amount, category, description, date },
+  });
+
+  revalidatePath("/", "layout");
+  revalidatePath("/expenses", "layout");
+}
+
+export async function editExpense(formData: FormData) {
+  const id = formData.get("id") as string;
+  const amount = parseFloat(formData.get("amount") as string);
+  const category = formData.get("category") as ExpenseCategory;
+  const description = (formData.get("description") as string) || null;
+  const date = new Date(formData.get("date") as string);
+
+  await prisma.expense.update({
+    where: { id },
     data: { amount, category, description, date },
   });
 

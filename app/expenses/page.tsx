@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentMonth, formatPLN } from "@/lib/utils";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 import { ExpenseTable } from "@/components/expenses/ExpenseTable";
+import { RecurringExpenses } from "@/components/expenses/RecurringExpenses";
 import { MonthFilter } from "@/components/income/MonthFilter";
 import { MetricCard } from "@/components/overview/MetricCard";
 import { TrendingDown, Receipt, ShoppingCart } from "lucide-react";
@@ -20,10 +21,15 @@ export default async function ExpensesPage({ searchParams }: Props) {
   const startOfMonth = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
 
-  const expenses = await prisma.expense.findMany({
-    where: { date: { gte: startOfMonth, lte: endOfMonth } },
-    orderBy: { date: "desc" },
-  });
+  const [expenses, recurringTemplates] = await Promise.all([
+    prisma.expense.findMany({
+      where: { date: { gte: startOfMonth, lte: endOfMonth } },
+      orderBy: { date: "desc" },
+    }),
+    prisma.recurringExpense.findMany({
+      orderBy: { dayOfMonth: "asc" },
+    }),
+  ]);
 
   const totalThisMonth = expenses.reduce((sum, e) => sum + e.amount, 0);
   const transactionCount = expenses.length;
@@ -40,7 +46,7 @@ export default async function ExpensesPage({ searchParams }: Props) {
             <h2 className="text-2xl font-bold tracking-tight">Wydatki</h2>
           </div>
           <p className="text-sm text-muted-foreground ml-12">
-            Sledz wydatki i kontroluj budzet
+            Śledź wydatki i kontroluj budżet
           </p>
         </div>
         <Suspense>
@@ -50,7 +56,7 @@ export default async function ExpensesPage({ searchParams }: Props) {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <MetricCard
-          title="Suma wydatkow"
+          title="Suma wydatków"
           value={formatPLN(totalThisMonth)}
           icon={TrendingDown}
           trend="down"
@@ -62,12 +68,14 @@ export default async function ExpensesPage({ searchParams }: Props) {
           trend="neutral"
         />
         <MetricCard
-          title="Srednia transakcja"
+          title="Średnia transakcja"
           value={formatPLN(avgTransaction)}
           icon={ShoppingCart}
           trend="neutral"
         />
       </div>
+
+      <RecurringExpenses data={recurringTemplates} currentMonth={selectedMonth} />
 
       <Suspense>
         <ExpenseForm />
