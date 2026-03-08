@@ -11,10 +11,10 @@ import {
   TrendingUp,
   TrendingDown,
   Calculator,
-  LineChart,
+  Activity,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { FadeInSection, StaggerGrid } from "@/components/ui/motion-wrappers";
 
 export const revalidate = 0;
 
@@ -59,18 +59,34 @@ export default async function InvestmentsPage() {
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
-  let cumulativeUnits = 0;
-  let cumulativeInvested = 0;
-  const portfolioValueData = sortedInvestments.map((inv) => {
-    cumulativeUnits += inv.units;
-    cumulativeInvested += inv.units * inv.pricePerUnit;
-    const priceAtTime = currentPricePln || inv.pricePerUnit;
-    return {
-      date: formatDate(inv.date),
-      value: Math.round(cumulativeUnits * priceAtTime * 100) / 100,
-      invested: Math.round(cumulativeInvested * 100) / 100,
-    };
-  });
+  const portfolioAccum = sortedInvestments.reduce<{
+    cumulativeUnits: number;
+    cumulativeInvested: number;
+    points: { date: string; value: number; invested: number }[];
+  }>(
+    (acc, inv) => {
+      const cumulativeUnits = acc.cumulativeUnits + inv.units;
+      const cumulativeInvested =
+        acc.cumulativeInvested + inv.units * inv.pricePerUnit;
+      const priceAtTime = currentPricePln || inv.pricePerUnit;
+
+      return {
+        cumulativeUnits,
+        cumulativeInvested,
+        points: [
+          ...acc.points,
+          {
+            date: formatDate(inv.date),
+            value: Math.round(cumulativeUnits * priceAtTime * 100) / 100,
+            invested: Math.round(cumulativeInvested * 100) / 100,
+          },
+        ],
+      };
+    },
+    { cumulativeUnits: 0, cumulativeInvested: 0, points: [] }
+  );
+
+  const portfolioValueData = portfolioAccum.points;
 
   if (currentPricePln && portfolioValueData.length > 0) {
     portfolioValueData.push({
@@ -105,35 +121,84 @@ export default async function InvestmentsPage() {
     "5y": hist5y,
   };
 
+  const headlinePrice =
+    currentPriceEur !== null ? `${currentPriceEur.toFixed(2)} EUR` : "Brak danych";
+  const headlineChange = `${dayChange >= 0 ? "+" : ""}${dayChange.toFixed(2)} EUR (${dayChangePct >= 0 ? "+" : ""}${dayChangePct.toFixed(2)}%)`;
+
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-blue-500/10">
-              <LineChart className="h-5 w-5 text-blue-500" />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight">Inwestycje</h2>
-          </div>
-          <p className="text-sm text-muted-foreground ml-12">
-            Portfolio VWCE i historia zakupow
-          </p>
-        </div>
-        {quote && eurPlnRate && (
-          <div className="text-right">
-            <p className="text-sm font-medium">{quote.name}</p>
-            <p className="text-xs text-muted-foreground">
-              EUR/PLN: {eurPlnRate.toFixed(4)}
-            </p>
-          </div>
-        )}
+    <div className="ag-page">
+      <div className="ag-toolbar">
+        <h1 className="ag-toolbar-title">Inwestycje</h1>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <FadeInSection>
+        <div className="ag-card">
+          <p className="ag-overline">Wartosc portfela</p>
+          <h1 className="mt-2 font-mono text-[clamp(2rem,4vw,2.9rem)] font-semibold tracking-[-0.03em] text-white">
+            {formatPLN(currentValue)}
+          </h1>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className={`ag-kpi ${dayChange >= 0 ? "up" : "down"}`}>{headlineChange}</span>
+            <span className="ag-kpi" style={{ color: "#6366F1", background: "rgba(99,102,241,.12)" }}>
+              {pnlPct >= 0 ? "+" : ""}
+              {pnlPct.toFixed(1)}% Total P&amp;L
+            </span>
+          </div>
+          <p className="mt-3 text-xs text-white/55">
+            VWCE Spot: {headlinePrice} · FX EUR/PLN: {eurPlnRate ? eurPlnRate.toFixed(4) : "Brak"}
+          </p>
+        </div>
+      </FadeInSection>
+
+      <FadeInSection delay={0.08}>
+        <Card className="overflow-hidden">
+          <CardContent className="pt-6">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-xl border border-white/[0.1] bg-white/[0.035] p-4">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/65">
+                  Jednostki
+                </p>
+                <p className="mt-1 text-sm font-semibold tabular-nums">
+                  {totalUnits.toFixed(4)} szt
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/[0.1] bg-white/[0.035] p-4">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/65">
+                  P&L Total
+                </p>
+                <p
+                  className={`mt-1 text-sm font-semibold tabular-nums ${
+                    pnl >= 0
+                      ? "text-emerald-400"
+                      : "text-red-400"
+                  }`}
+                >
+                  {formatPLN(pnl)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/[0.1] bg-white/[0.035] p-4">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/65">
+                  Momentum
+                </p>
+                <p className="mt-1 text-sm font-semibold tabular-nums">
+                  {pnlPct >= 0 ? "+" : ""}
+                  {pnlPct.toFixed(2)}%
+                </p>
+                <span className="mt-2 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Activity className="h-3 w-3 text-primary" />
+                  Trend portfela
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </FadeInSection>
+
+      <StaggerGrid className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Zainwestowano"
           value={formatPLN(totalInvested)}
-          icon={Wallet}
+          icon={<Wallet />}
           trend="neutral"
         />
         <MetricCard
@@ -144,7 +209,7 @@ export default async function InvestmentsPage() {
               ? `VWCE: ${currentPriceEur.toFixed(2)} EUR (${currentPricePln.toFixed(2)} PLN)`
               : "Brak danych"
           }
-          icon={TrendingUp}
+          icon={<TrendingUp />}
           trend={pnl >= 0 ? "up" : "down"}
         />
         <MetricCard
@@ -155,70 +220,78 @@ export default async function InvestmentsPage() {
               ? `Dzis: ${dayChange >= 0 ? "+" : ""}${dayChange.toFixed(2)} EUR (${dayChangePct >= 0 ? "+" : ""}${dayChangePct.toFixed(2)}%)`
               : undefined
           }
-          icon={pnl >= 0 ? TrendingUp : TrendingDown}
+          icon={pnl >= 0 ? <TrendingUp /> : <TrendingDown />}
           trend={pnl >= 0 ? "up" : "down"}
         />
         <MetricCard
           title="Srednia cena (DCA)"
           value={`${avgPricePln.toFixed(2)} PLN`}
           subtitle={`${totalUnits.toFixed(4)} jednostek`}
-          icon={Calculator}
+          icon={<Calculator />}
           trend="neutral"
         />
+      </StaggerGrid>
+
+      <div className="grid gap-6 xl:grid-cols-[1.06fr_0.94fr]">
+        <FadeInSection delay={0.18}>
+          <PortfolioChart dataByPeriod={dataByPeriod} ticker="VWCE.DE" />
+        </FadeInSection>
+        <FadeInSection delay={0.24}>
+          <PortfolioValueChart data={portfolioValueData} />
+        </FadeInSection>
       </div>
 
-      <PortfolioChart dataByPeriod={dataByPeriod} ticker="VWCE.DE" />
-      <PortfolioValueChart data={portfolioValueData} />
-
       {positions.length > 0 && currentPricePln && (
-        <Card className="overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
-          <CardContent className="pt-5">
-            <div className="flex items-center gap-2.5 mb-5">
-              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
-                <Wallet className="h-4 w-4 text-blue-500" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm">Pozycje</h3>
-                <p className="text-xs text-muted-foreground">{positions.length} zakupow</p>
-              </div>
-            </div>
-            <div className="space-y-0 divide-y divide-border">
-              {positions.map((pos) => (
-                <div
-                  key={pos.id}
-                  className="flex items-center justify-between gap-3 py-3"
-                >
-                  <div>
-                    <p className="text-sm font-medium tabular-nums">
-                      {pos.units.toFixed(4)} szt &middot;{" "}
-                      {formatDate(pos.date)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Kupno: {pos.pricePerUnit.toFixed(2)} PLN/szt &middot;
-                      Teraz: {currentPricePln.toFixed(2)} PLN/szt
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold tabular-nums">{formatPLN(pos.currentVal)}</p>
-                    <Badge
-                      variant={pos.pnl >= 0 ? "default" : "destructive"}
-                      className="text-[10px]"
-                    >
-                      {pos.pnl >= 0 ? "+" : ""}
-                      {formatPLN(pos.pnl)} ({pos.pnl >= 0 ? "+" : ""}
-                      {pos.pnlPct.toFixed(1)}%)
-                    </Badge>
-                  </div>
+        <FadeInSection delay={0.3}>
+          <Card className="overflow-hidden">
+            <CardContent className="pt-6">
+              <div className="mb-6 flex items-center gap-2.5">
+                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
+                  <Wallet className="h-4 w-4 text-blue-500" />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div>
+                  <h3 className="font-semibold text-sm">Pozycje</h3>
+                  <p className="text-xs text-muted-foreground">{positions.length} zakupow</p>
+                </div>
+              </div>
+              <div className="space-y-0 divide-y divide-border">
+                {positions.map((pos) => (
+                  <div
+                    key={pos.id}
+                    className="flex items-center justify-between gap-2 py-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm font-medium tabular-nums truncate">
+                        {pos.units.toFixed(4)} szt &middot; {formatDate(pos.date)}
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
+                        {pos.pricePerUnit.toFixed(2)} &rarr; {currentPricePln.toFixed(2)} PLN/szt
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs sm:text-sm font-semibold tabular-nums">{formatPLN(pos.currentVal)}</p>
+                      <span
+                        className={`text-[10px] font-medium tabular-nums ${pos.pnl >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                      >
+                        {pos.pnl >= 0 ? "+" : ""}{pos.pnlPct.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </FadeInSection>
       )}
 
-      <InvestmentForm />
-      <InvestmentTable data={investments} />
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <FadeInSection delay={0.36}>
+          <InvestmentForm />
+        </FadeInSection>
+        <FadeInSection delay={0.42}>
+          <InvestmentTable data={investments} />
+        </FadeInSection>
+      </div>
     </div>
   );
 }

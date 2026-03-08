@@ -3,45 +3,32 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
-  LayoutDashboard,
-  TrendingUp,
-  TrendingDown,
-  LineChart,
-  PiggyBank,
+  ArrowDownUp,
   Calculator,
-  ScanLine,
+  LayoutDashboard,
+  LineChart,
+  LogOut,
+  PiggyBank,
+  TrendingDown,
+  TrendingUp,
+  Upload,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ALL_MONTHS_VALUE, cn, isValidMonth } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "./ThemeToggle";
-import { MonthFilter } from "@/components/income/MonthFilter";
 import { Suspense } from "react";
+import { BrandLogo } from "@/components/layout/BrandLogo";
 
-const navGroups = [
-  {
-    label: "Dashboard",
-    items: [{ href: "/", label: "Overview", icon: LayoutDashboard }],
-  },
-  {
-    label: "Finanse",
-    items: [
-      { href: "/income", label: "Przychody", icon: TrendingUp },
-      { href: "/expenses", label: "Wydatki", icon: TrendingDown },
-      { href: "/savings", label: "Oszczędności", icon: PiggyBank },
-      { href: "/investments", label: "Inwestycje", icon: LineChart },
-    ],
-  },
-  {
-    label: "Narzędzia",
-    items: [
-      { href: "/calculator", label: "Kalkulator", icon: Calculator },
-      { href: "/scan", label: "Skaner AI", icon: ScanLine },
-    ],
-  },
+const navItems = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/transactions", label: "Transakcje", icon: ArrowDownUp },
+  { href: "/income", label: "Przychody", icon: TrendingUp },
+  { href: "/expenses", label: "Wydatki", icon: TrendingDown },
+  { href: "/savings", label: "Oszczednosci", icon: PiggyBank },
+  { href: "/investments", label: "Inwestycje", icon: LineChart },
+  { href: "/import", label: "Import CSV", icon: Upload },
+  { href: "/calculator", label: "Kalkulator", icon: Calculator },
 ];
-
-const allNavItems = navGroups.flatMap((g) => g.items);
 
 function NavLink({
   href,
@@ -58,26 +45,32 @@ function NavLink({
 }) {
   const searchParams = useSearchParams();
   const month = searchParams.get("month");
-  const linkHref = month ? `${href}?month=${month}` : href;
+  const shouldKeepMonth =
+    month &&
+    (isValidMonth(month) || (month === ALL_MONTHS_VALUE && href === "/"));
+  const linkHref = shouldKeepMonth ? `${href}?month=${month}` : href;
 
   return (
     <Link
       href={linkHref}
       onClick={onClose}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        "group relative flex items-center gap-3 rounded-r-2xl px-6 py-3 text-sm font-medium transition-all duration-200",
         isActive
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          ? "text-white bg-white/[0.06]"
+          : "text-white/50 hover:text-white/80 hover:bg-white/[0.03]"
       )}
     >
+      {isActive && (
+        <span className="absolute inset-y-1.5 left-0 w-1 rounded-r-md bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
+      )}
       <Icon
         className={cn(
-          "h-4 w-4",
-          isActive ? "text-primary" : "text-muted-foreground/70"
+          "h-[18px] w-[18px] shrink-0 transition-colors",
+          isActive ? "text-indigo-400" : "text-white/40 group-hover:text-white/60"
         )}
       />
-      {label}
+      <span className="truncate">{label}</span>
     </Link>
   );
 }
@@ -86,96 +79,56 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-full flex-col bg-card border-r border-border">
-      <div className="flex items-center justify-between px-5 pt-6 pb-2">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
-            F
-          </div>
-          <span className="text-base font-semibold tracking-tight">
-            Finance
-          </span>
-        </div>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex min-h-[100px] shrink-0 items-center justify-between border-b border-white/[0.06] px-6">
+        <BrandLogo size="md" subtitle="CONTROL CENTER" />
+
         {onClose && (
           <Button
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-8 w-8 md:hidden"
+            className="h-9 w-9 rounded-full md:hidden text-white/50 hover:text-white hover:bg-white/[0.06]"
           >
             <X className="h-4 w-4" />
           </Button>
         )}
       </div>
 
-      {/* Global Month Filter */}
-      <div className="px-4 py-3">
-        <Suspense>
-          <MonthFilter />
-        </Suspense>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto px-3 pt-2 space-y-6">
-        {navGroups.map((group) => (
-          <div key={group.label}>
-            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-              {group.label}
-            </p>
-            <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const isActive =
-                  item.href === "/"
-                    ? pathname === "/"
-                    : pathname.startsWith(item.href);
-                return (
-                  <Suspense key={item.href}>
-                    <NavLink
-                      href={item.href}
-                      label={item.label}
-                      icon={item.icon}
-                      isActive={isActive}
-                      onClose={onClose}
-                    />
-                  </Suspense>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+      <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto py-4">
+        {navItems.map((item) => {
+          const isActive =
+            item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          return (
+            <Suspense key={item.href}>
+              <NavLink
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                isActive={isActive}
+                onClose={onClose}
+              />
+            </Suspense>
+          );
+        })}
       </nav>
 
-      <div className="flex items-center justify-between border-t border-border px-5 py-3">
-        <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">
-          v1.0
-        </span>
-        <ThemeToggle />
+      <div className="shrink-0 border-t border-white/[0.06] px-4 py-4">
+        <button
+          onClick={async () => {
+            try {
+              await fetch("/api/auth", { method: "DELETE" });
+            } catch {
+              // Ignore network errors and continue logout redirect.
+            }
+            window.location.href = "/login";
+          }}
+          className="group flex w-full items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3 text-sm font-medium text-white/70 transition-all hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-300"
+        >
+          <LogOut className="h-4 w-4 text-white/45 transition-colors group-hover:text-red-300" />
+          Wyloguj się
+        </button>
       </div>
     </div>
-  );
-}
-
-export function MobileNav() {
-  const pathname = usePathname();
-  const mobileItems = allNavItems.slice(0, 5);
-
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-border bg-card/95 backdrop-blur-sm py-1.5 md:hidden">
-      {mobileItems.map((item) => {
-        const isActive =
-          item.href === "/"
-            ? pathname === "/"
-            : pathname.startsWith(item.href);
-        return (
-          <Suspense key={item.href}>
-            <NavLink
-              href={item.href}
-              label={item.label}
-              icon={item.icon}
-              isActive={isActive}
-            />
-          </Suspense>
-        );
-      })}
-    </nav>
   );
 }

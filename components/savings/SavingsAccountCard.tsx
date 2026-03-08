@@ -55,8 +55,7 @@ export function SavingsAccountCard({ id, name, currency, balance }: SavingsAccou
 
   return (
     <Card className="overflow-hidden">
-      <div className={`h-1 bg-gradient-to-r ${config.gradient}`} />
-      <CardContent className="pt-4">
+      <CardContent className="pt-5">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2.5">
             <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${config.bg}`}>
@@ -100,7 +99,7 @@ export function SavingsAccountCard({ id, name, currency, balance }: SavingsAccou
             </Button>
           </div>
         ) : (
-          <p className="mt-3 text-2xl font-bold tracking-tight tabular-nums">
+          <p className="mt-3 text-xl sm:text-2xl font-bold tracking-tight tabular-nums">
             {formatted} <span className="text-base font-medium text-muted-foreground">{config.symbol}</span>
           </p>
         )}

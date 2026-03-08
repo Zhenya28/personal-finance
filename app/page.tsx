@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import {
+  ALL_MONTHS_VALUE,
   formatPLN,
   formatCurrency,
   getCurrentMonth,
   getLast6Months,
   getMonthLabel,
+  isValidMonth,
 } from "@/lib/utils";
 import { MetricCard } from "@/components/overview/MetricCard";
 import { IncomeOverviewCard } from "@/components/overview/IncomeOverviewCard";
@@ -13,11 +15,8 @@ import { CashflowChart } from "@/components/overview/CashflowChart";
 import { ExpensePieChart } from "@/components/overview/ExpensePieChart";
 import { fetchVWCEData } from "@/actions/investments";
 import { getFxRate } from "@/lib/yahoo";
-import {
-  Wallet,
-  TrendingDown,
-  LayoutDashboard,
-} from "lucide-react";
+import { Wallet, TrendingDown, Radar, ShieldCheck } from "lucide-react";
+import { StaggerGrid, FadeInSection } from "@/components/ui/motion-wrappers";
 
 export const revalidate = 0;
 
@@ -26,7 +25,9 @@ interface Props {
 }
 
 async function getOverviewData(selectedMonth: string) {
-  const [year, month] = selectedMonth.split("-").map(Number);
+  const isAllMonths = selectedMonth === ALL_MONTHS_VALUE;
+  const monthForContext = isAllMonths ? getCurrentMonth() : selectedMonth;
+  const [year, month] = monthForContext.split("-").map(Number);
   const startOfMonth = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
 
@@ -37,6 +38,9 @@ async function getOverviewData(selectedMonth: string) {
   const last6 = getLast6Months();
   const oldestMonth = last6[0].split("-").map(Number);
   const sixMonthsAgo = new Date(oldestMonth[0], oldestMonth[1] - 1, 1);
+  const currentWindow = isAllMonths
+    ? undefined
+    : { date: { gte: startOfMonth, lte: endOfMonth } };
 
   const [
     expensesThisMonth,
@@ -52,7 +56,7 @@ async function getOverviewData(selectedMonth: string) {
   ] = await Promise.all([
     prisma.expense.aggregate({
       _sum: { amount: true },
-      where: { date: { gte: startOfMonth, lte: endOfMonth } },
+      where: currentWindow,
     }),
     prisma.expense.aggregate({
       _sum: { amount: true },
@@ -68,12 +72,12 @@ async function getOverviewData(selectedMonth: string) {
     prisma.expense.groupBy({
       by: ["category"],
       _sum: { amount: true },
-      where: { date: { gte: startOfMonth, lte: endOfMonth } },
+      where: currentWindow,
     }),
     prisma.income.groupBy({
       by: ["category"],
       _sum: { amount: true },
-      where: { date: { gte: startOfMonth, lte: endOfMonth } },
+      where: currentWindow,
     }),
     prisma.income.findMany({
       where: { date: { gte: sixMonthsAgo, lte: endOfMonth } },
@@ -100,8 +104,14 @@ async function getOverviewData(selectedMonth: string) {
   const prevExpenses = prevExpensesAgg._sum.amount || 0;
   const prevIncome = prevIncomeAgg._sum.amount || 0;
   const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome * 100) : 0;
-  const expenseTrendPct = prevExpenses > 0 ? ((totalExpenses - prevExpenses) / prevExpenses * 100) : null;
-  const incomeTrendPct = prevIncome > 0 ? ((totalIncome - prevIncome) / prevIncome * 100) : null;
+  const expenseTrendPct =
+    isAllMonths || prevExpenses <= 0
+      ? null
+      : ((totalExpenses - prevExpenses) / prevExpenses) * 100;
+  const incomeTrendPct =
+    isAllMonths || prevIncome <= 0
+      ? null
+      : ((totalIncome - prevIncome) / prevIncome) * 100;
 
   // Portfolio
   const totalUnits = investments.reduce((sum, inv) => sum + inv.units, 0);
@@ -122,13 +132,24 @@ async function getOverviewData(selectedMonth: string) {
   const totalSavings = savingsAccounts.reduce((sum, acc) => sum + acc.balance * (fxRates[acc.currency] ?? 1), 0);
 
   // Charts
+  const incomeByMonth = new Map<string, number>();
+  for (const item of allIncomes6m) {
+    const monthKey = `${item.date.getFullYear()}-${String(item.date.getMonth() + 1).padStart(2, "0")}`;
+    incomeByMonth.set(monthKey, (incomeByMonth.get(monthKey) || 0) + item.amount);
+  }
+
+  const expenseByMonth = new Map<string, number>();
+  for (const item of allExpenses6m) {
+    const monthKey = `${item.date.getFullYear()}-${String(item.date.getMonth() + 1).padStart(2, "0")}`;
+    expenseByMonth.set(monthKey, (expenseByMonth.get(monthKey) || 0) + item.amount);
+  }
+
   const cashflowData = last6.map((m) => {
-    const [y, mo] = m.split("-").map(Number);
-    const start = new Date(y, mo - 1, 1);
-    const end = new Date(y, mo, 0, 23, 59, 59);
-    const incomeSum = allIncomes6m.filter((i) => i.date >= start && i.date <= end).reduce((sum, i) => sum + i.amount, 0);
-    const expenseSum = allExpenses6m.filter((e) => e.date >= start && e.date <= end).reduce((sum, e) => sum + e.amount, 0);
-    return { month: getMonthLabel(m), income: incomeSum, expenses: expenseSum };
+    return {
+      month: getMonthLabel(m),
+      income: incomeByMonth.get(m) || 0,
+      expenses: expenseByMonth.get(m) || 0,
+    };
   });
 
   const pieData = expensesByCategory.map((e) => ({
@@ -148,7 +169,7 @@ async function getOverviewData(selectedMonth: string) {
     incomeTrendPct,
     cashflowData,
     pieData,
-    monthLabel: getMonthLabel(selectedMonth),
+    monthLabel: isAllMonths ? "Wszystkie miesiace" : getMonthLabel(selectedMonth),
   };
 }
 
@@ -160,31 +181,86 @@ function formatTrend(pct: number | null): string | undefined {
 
 export default async function OverviewPage({ searchParams }: Props) {
   const params = await searchParams;
-  const selectedMonth = params.month || getCurrentMonth();
+  const selectedMonth =
+    params.month === ALL_MONTHS_VALUE
+      ? ALL_MONTHS_VALUE
+      : isValidMonth(params.month)
+        ? params.month
+        : getCurrentMonth();
   const data = await getOverviewData(selectedMonth);
+  const spendingRatio =
+    data.totalIncome > 0 ? (data.totalExpenses / data.totalIncome) * 100 : 0;
+  const savingsRatio = Math.max(0, Math.min(100, data.savingsRate));
+  const liquidityBadge =
+    data.netBalance >= 0
+      ? "Finanse pod kontrola"
+      : "Potrzebna stabilizacja";
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-      <div>
-        <div className="flex items-center gap-3 mb-1">
-          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10">
-            <LayoutDashboard className="h-5 w-5 text-primary" />
+    <div className="ag-page">
+      <FadeInSection>
+        <div className="ag-card">
+          <div className="ag-inline-row mb-4">
+            <p className="ag-overline">Dashboard finansowy</p>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Overview</h2>
-            <p className="text-sm text-muted-foreground capitalize">
-              {data.monthLabel}
-            </p>
+
+          <h2 className="text-[clamp(2rem,3.6vw,2.9rem)] font-semibold tracking-[-0.03em] text-white">
+            Twoj finansowy pulpit
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/65">
+            Ten widok laczy dochody, wydatki, oszczednosci i inwestycje w jednym miejscu, zebys
+            szybciej reagowal na zmiany.
+          </p>
+
+          <div className="mt-5 grid w-full gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/[0.1] bg-white/[0.03] px-4 py-3">
+              <div className="flex items-center justify-between">
+                <p className="ag-overline">Saldo netto</p>
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
+                  <Wallet className="h-3.5 w-3.5 text-primary" />
+                </div>
+              </div>
+              <p className="mt-2 font-mono text-3xl font-semibold tracking-[-0.02em] tabular-nums text-white">
+                {formatPLN(data.netBalance)}
+              </p>
+              <p className="mt-1 text-[11px] text-white/55">{liquidityBadge}</p>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.1] bg-white/[0.03] px-4 py-3">
+              <div className="flex items-center justify-between">
+                <p className="ag-overline">Wskaznik oszczedzania</p>
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                </div>
+              </div>
+              <p className="mt-2 font-mono text-3xl font-semibold tracking-[-0.02em] tabular-nums text-white">
+                {savingsRatio.toFixed(0)}%
+              </p>
+              <p className="mt-1 text-[11px] text-white/55">Poduszka finansowa</p>
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.1] bg-white/[0.03] px-4 py-3">
+              <div className="flex items-center justify-between">
+                <p className="ag-overline">Intensywnosc wydatkow</p>
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ff8f6b]/20">
+                  <Radar className="h-3.5 w-3.5 text-[#ff8f6b]" />
+                </div>
+              </div>
+              <p className="mt-2 font-mono text-3xl font-semibold tracking-[-0.02em] tabular-nums text-white">
+                {spendingRatio.toFixed(0)}%
+              </p>
+              <p className="mt-1 text-[11px] text-white/55">Udzial kosztow</p>
+            </div>
           </div>
         </div>
-      </div>
+      </FadeInSection>
 
       <NetWorthCard
         totalSavings={data.totalSavings}
         portfolioValue={data.portfolioValue}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StaggerGrid className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <IncomeOverviewCard
           total={data.totalIncome}
           wyplata1={data.incomeBreakdown.WYPLATA_1}
@@ -195,29 +271,30 @@ export default async function OverviewPage({ searchParams }: Props) {
         <MetricCard
           title="Wydatki"
           value={formatPLN(data.totalExpenses)}
-          icon={TrendingDown}
+          icon={<TrendingDown />}
           trend="down"
           subtitle={formatTrend(data.expenseTrendPct)}
         />
         <MetricCard
           title="Saldo netto"
           value={formatPLN(data.netBalance)}
-          icon={Wallet}
+          icon={<Wallet />}
           trend={data.netBalance >= 0 ? "up" : "down"}
           subtitle={`Wskaźnik oszczędzania: ${data.savingsRate.toFixed(0)}%`}
         />
         <MetricCard
           title="Oszczędności"
           value={formatCurrency(data.totalSavings, "PLN")}
-          icon={Wallet}
+          icon={<Wallet />}
           trend="neutral"
         />
-      </div>
+      </StaggerGrid>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <FadeInSection delay={0.24} className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <CashflowChart data={data.cashflowData} />
         <ExpensePieChart data={data.pieData} />
-      </div>
+      </FadeInSection>
+
     </div>
   );
 }

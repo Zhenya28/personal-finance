@@ -1,13 +1,19 @@
 {
-  "name": "Finance Dashboard",
-  "short_name": "Finanse",
-  "description": "Personalny dashboard finansowy",
+  "name": "MyFinance",
+  "short_name": "MyFinance",
+  "description": "Nowoczesny panel do zarzadzania finansami osobistymi",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
-  "theme_color": "#8b5cf6",
+  "theme_color": "#0A0F1E",
   "orientation": "any",
   "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",

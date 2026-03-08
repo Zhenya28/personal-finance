@@ -2,8 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { SavingsSummary } from "@/components/savings/SavingsSummary";
 import { SavingsForm } from "@/components/savings/SavingsForm";
 import { SavingsAccountCard } from "@/components/savings/SavingsAccountCard";
+import { SavingsVisuals } from "@/components/savings/SavingsVisuals";
 import { getFxRate } from "@/lib/yahoo";
-import { PiggyBank } from "lucide-react";
 
 export const revalidate = 0;
 
@@ -34,21 +34,31 @@ async function getSavingsData() {
 export default async function SavingsPage() {
   const { accounts, fxRates } = await getSavingsData();
 
+  const currencyBuckets = new Map<string, number>();
+  for (const acc of accounts) {
+    const amountPln = acc.balance * (fxRates[acc.currency] ?? 1);
+    currencyBuckets.set(acc.currency, (currencyBuckets.get(acc.currency) || 0) + amountPln);
+  }
+  const currencyData = Array.from(currencyBuckets.entries())
+    .map(([currency, amountPln]) => ({ currency, amountPln }))
+    .sort((a, b) => b.amountPln - a.amountPln);
+
+  const accountData = accounts
+    .map((acc) => ({
+      name: acc.name.length > 14 ? `${acc.name.slice(0, 14)}...` : acc.name,
+      currency: acc.currency,
+      amountPln: acc.balance * (fxRates[acc.currency] ?? 1),
+    }))
+    .sort((a, b) => b.amountPln - a.amountPln);
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div>
-        <div className="flex items-center gap-3 mb-1">
-          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-amber-500/10">
-            <PiggyBank className="h-5 w-5 text-amber-500" />
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight">Oszczednosci</h2>
-        </div>
-        <p className="text-sm text-muted-foreground ml-12">
-          Konta oszczednosciowe w roznych walutach
-        </p>
+    <div className="ag-page">
+      <div className="ag-toolbar">
+        <h1 className="ag-toolbar-title">Oszczednosci</h1>
       </div>
 
       <SavingsSummary accounts={accounts} fxRates={fxRates} />
+
+      <SavingsVisuals currencyData={currencyData} accountData={accountData} />
 
       <SavingsForm />
 

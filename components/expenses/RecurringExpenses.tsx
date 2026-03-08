@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Repeat, Plus, Play, ChevronDown, ChevronUp } from "lucide-react";
+import { Repeat, Plus, Play, ChevronUp } from "lucide-react";
 import { formatPLN, EXPENSE_CATEGORY_LABELS } from "@/lib/utils";
 import { addRecurring, deleteRecurring, toggleRecurring, applyRecurringTemplates } from "@/actions/recurring";
 import { ConfirmDeleteDialog } from "@/components/ui/confirm-delete-dialog";
@@ -91,9 +91,9 @@ export function RecurringExpenses({
 
   return (
     <Card className="overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-orange-500 to-amber-400" />
-      <CardContent className="pt-5">
-        <div className="flex items-center justify-between mb-4">
+      <CardContent className="pt-6">
+        <p className="ag-overline mb-3">Wydatki powtarzalne</p>
+        <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-orange-500/10">
               <Repeat className="h-4 w-4 text-orange-500" />
@@ -135,7 +135,7 @@ export function RecurringExpenses({
         </div>
 
         {showForm && (
-          <form action={handleAdd} className="grid gap-3 sm:grid-cols-5 items-end mb-4 p-3 rounded-lg bg-muted/30 border border-border/50">
+          <form action={handleAdd} className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 items-end mb-5 p-4 rounded-xl bg-white/[0.03] border border-white/[0.1]">
             <div className="space-y-1.5">
               <Label className="text-xs">Kwota</Label>
               <Input
@@ -172,7 +172,7 @@ export function RecurringExpenses({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Dzien miesiaca</Label>
+              <Label className="text-xs">Dzien</Label>
               <Input
                 name="dayOfMonth"
                 type="number"
@@ -183,7 +183,7 @@ export function RecurringExpenses({
                 className="h-8 text-sm"
               />
             </div>
-            <Button type="submit" disabled={isPending} className="h-8 text-sm">
+            <Button type="submit" disabled={isPending} className="h-8 text-sm col-span-2 sm:col-span-1">
               Dodaj szablon
             </Button>
           </form>
@@ -194,29 +194,29 @@ export function RecurringExpenses({
             Brak szablonow cyklicznych. Dodaj pierwszy szablon powyzej.
           </p>
         ) : (
-          <div className="space-y-0 divide-y divide-border -mx-6">
+          <div className="space-y-2.5">
             {data.map((template) => (
               <div
                 key={template.id}
-                className={`flex items-center justify-between gap-3 px-6 py-2.5 transition-colors ${
+                className={`flex items-center justify-between gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 sm:px-6 py-2.5 transition-colors ${
                   template.active
-                    ? "hover:bg-muted/30"
+                    ? "hover:border-white/[0.14] hover:bg-white/[0.04]"
                     : "opacity-50"
                 }`}
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-xs font-medium tabular-nums text-muted-foreground w-8 shrink-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  <span className="text-xs font-medium tabular-nums text-muted-foreground w-6 sm:w-8 shrink-0">
                     {template.dayOfMonth}.
                   </span>
-                  <Badge variant="secondary" className="shrink-0 text-[10px]">
+                  <Badge variant="secondary" className="shrink-0 text-[10px] hidden sm:inline-flex">
                     {EXPENSE_CATEGORY_LABELS[template.category] || template.category}
                   </Badge>
-                  <span className="text-sm text-muted-foreground truncate">
+                  <span className="text-xs sm:text-sm text-muted-foreground truncate">
                     {template.description || "—"}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-sm font-semibold tabular-nums">
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                  <span className="text-xs sm:text-sm font-semibold tabular-nums">
                     {formatPLN(template.amount)}
                   </span>
                   <Button

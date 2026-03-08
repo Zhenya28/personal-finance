@@ -3,6 +3,9 @@ import { twMerge } from "tailwind-merge";
 import { format } from "date-fns";
 import { pl } from "date-fns/locale";
 
+export const ALL_MONTHS_VALUE = "all";
+const MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -36,6 +39,10 @@ export function formatMonth(date: Date): string {
 
 export function getCurrentMonth(): string {
   return formatMonth(new Date());
+}
+
+export function isValidMonth(value: string | null | undefined): value is string {
+  return typeof value === "string" && MONTH_REGEX.test(value);
 }
 
 export function getMonthLabel(monthStr: string): string {
@@ -85,3 +92,23 @@ export const INCOME_CATEGORY_COLORS: Record<string, string> = {
   WYPLATA_2: "#3b82f6",
   INNE: "#8b5cf6",
 };
+
+export const CATEGORY_ICONS: Record<string, string> = {
+  ZAKUPY: "🛍️",
+  RESTAURACJE: "☕",
+  TRANSPORT: "🚕",
+  SUBSCRIPTIONS: "🎬",
+  MIESZKANIE: "🏠",
+  FUN: "🎮",
+  OTHER: "🧾",
+  WYPLATA_1: "💼",
+  WYPLATA_2: "💼",
+  INNE: "💸",
+};
+
+export function getCategoryIcon(
+  category: string,
+  type?: "income" | "expense"
+): string {
+  return CATEGORY_ICONS[category] || (type === "income" ? "💸" : "🧾");
+}

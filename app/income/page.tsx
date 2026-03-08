@@ -4,14 +4,15 @@ import {
   getCurrentMonth,
   getLast6Months,
   getMonthLabel,
+  isValidMonth,
 } from "@/lib/utils";
 import { MetricCard } from "@/components/overview/MetricCard";
 import { IncomeForm } from "@/components/income/IncomeForm";
 import { IncomeTable } from "@/components/income/IncomeTable";
 import { IncomeChart } from "@/components/income/IncomeChart";
-import { MonthFilter } from "@/components/income/MonthFilter";
 import { DollarSign, TrendingUp, Award } from "lucide-react";
 import { Suspense } from "react";
+import { StaggerGrid } from "@/components/ui/motion-wrappers";
 
 export const revalidate = 0;
 
@@ -21,7 +22,9 @@ interface Props {
 
 export default async function IncomePage({ searchParams }: Props) {
   const params = await searchParams;
-  const selectedMonth = params.month || getCurrentMonth();
+  const selectedMonth = isValidMonth(params.month)
+    ? params.month
+    : getCurrentMonth();
   const [year, month] = selectedMonth.split("-").map(Number);
   const startOfMonth = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
@@ -43,14 +46,30 @@ export default async function IncomePage({ searchParams }: Props) {
 
   const totalThisMonth = incomes.reduce((sum, i) => sum + i.amount, 0);
 
+  const incomeByMonth = new Map<
+    string,
+    { total: number; WYPLATA_1: number; WYPLATA_2: number; INNE: number }
+  >();
+  for (const entry of allIncomes6m) {
+    const monthKey = `${entry.date.getFullYear()}-${String(entry.date.getMonth() + 1).padStart(2, "0")}`;
+    const bucket = incomeByMonth.get(monthKey) || {
+      total: 0,
+      WYPLATA_1: 0,
+      WYPLATA_2: 0,
+      INNE: 0,
+    };
+
+    bucket.total += entry.amount;
+    if (entry.category === "WYPLATA_1") bucket.WYPLATA_1 += entry.amount;
+    if (entry.category === "WYPLATA_2") bucket.WYPLATA_2 += entry.amount;
+    if (entry.category === "INNE") bucket.INNE += entry.amount;
+
+    incomeByMonth.set(monthKey, bucket);
+  }
+
   const monthlyTotals = last6.map((m) => {
-    const [y, mo] = m.split("-").map(Number);
-    const start = new Date(y, mo - 1, 1);
-    const end = new Date(y, mo, 0, 23, 59, 59);
-    const total = allIncomes6m
-      .filter((i) => i.date >= start && i.date <= end)
-      .reduce((sum, i) => sum + i.amount, 0);
-    return { month: m, total };
+    const monthData = incomeByMonth.get(m);
+    return { month: m, total: monthData?.total || 0 };
   });
 
   const nonZeroMonths = monthlyTotals.filter((m) => m.total > 0);
@@ -65,66 +84,42 @@ export default async function IncomePage({ searchParams }: Props) {
   );
 
   const chartData = last6.map((m) => {
-    const [y, mo] = m.split("-").map(Number);
-    const start = new Date(y, mo - 1, 1);
-    const end = new Date(y, mo, 0, 23, 59, 59);
-    const monthRecords = allIncomes6m.filter(
-      (i) => i.date >= start && i.date <= end
-    );
+    const monthData = incomeByMonth.get(m);
     return {
       month: getMonthLabel(m),
-      WYPLATA_1: monthRecords
-        .filter((i) => i.category === "WYPLATA_1")
-        .reduce((sum, i) => sum + i.amount, 0),
-      WYPLATA_2: monthRecords
-        .filter((i) => i.category === "WYPLATA_2")
-        .reduce((sum, i) => sum + i.amount, 0),
-      INNE: monthRecords
-        .filter((i) => i.category === "INNE")
-        .reduce((sum, i) => sum + i.amount, 0),
+      WYPLATA_1: monthData?.WYPLATA_1 || 0,
+      WYPLATA_2: monthData?.WYPLATA_2 || 0,
+      INNE: monthData?.INNE || 0,
     };
   });
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-emerald-500/10">
-              <TrendingUp className="h-5 w-5 text-emerald-500" />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight">Przychody</h2>
-          </div>
-          <p className="text-sm text-muted-foreground ml-12">
-            Zarzadzaj przychodami i sledz zarobki
-          </p>
-        </div>
-        <Suspense>
-          <MonthFilter />
-        </Suspense>
+    <div className="ag-page">
+      <div className="ag-toolbar">
+        <h1 className="ag-toolbar-title">Przychody</h1>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <StaggerGrid className="grid gap-4 sm:grid-cols-3">
         <MetricCard
           title="Ten miesiac"
           value={formatPLN(totalThisMonth)}
-          icon={DollarSign}
+          icon={<DollarSign />}
           trend="up"
         />
         <MetricCard
           title="Srednia miesieczna"
           value={formatPLN(avgMonthly)}
-          icon={TrendingUp}
+          icon={<TrendingUp />}
           trend="neutral"
         />
         <MetricCard
           title="Najlepszy miesiac"
           value={formatPLN(bestMonth.total)}
           subtitle={getMonthLabel(bestMonth.month)}
-          icon={Award}
+          icon={<Award />}
           trend="up"
         />
-      </div>
+      </StaggerGrid>
 
       <Suspense>
         <IncomeForm />

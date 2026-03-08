@@ -25,15 +25,14 @@ export function IncomeChart({ data }: { data: IncomeChartData[] }) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-emerald-500 to-blue-500" />
-      <CardContent className="pt-5">
-        <div className="flex items-center gap-2.5 mb-5">
-          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/10">
+      <CardContent className="pt-6">
+        <div className="mb-6 flex items-center gap-2.5">
+          <div className="flex items-center justify-center h-9 w-9 rounded-xl border border-white/[0.08] bg-emerald-500/10">
             <BarChart3 className="h-4 w-4 text-emerald-500" />
           </div>
           <div>
-            <h3 className="font-semibold text-sm">Przychody per miesiac</h3>
-            <p className="text-xs text-muted-foreground">Rozbicie na kategorie</p>
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">Przychody per miesiac</h3>
+            <p className="text-sm font-medium text-foreground">Rozbicie na kategorie</p>
           </div>
           <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
@@ -63,8 +62,8 @@ export function IncomeChart({ data }: { data: IncomeChartData[] }) {
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
+                backgroundColor: "var(--card)",
+                border: "1px solid var(--border)",
                 borderRadius: "8px",
                 fontSize: "12px",
               }}

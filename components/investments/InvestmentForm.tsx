@@ -43,15 +43,14 @@ export function InvestmentForm() {
 
   return (
     <Card className="overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
-      <CardContent className="pt-5">
-        <div className="flex items-center gap-2.5 mb-4">
+      <CardContent className="pt-6">
+        <div className="mb-5 flex items-center gap-2.5">
           <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
             <Plus className="h-4 w-4 text-blue-500" />
           </div>
           <h3 className="font-semibold text-sm">Dodaj zakup</h3>
         </div>
-        <form action={handleSubmit} className="space-y-3">
+        <form action={handleSubmit} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-3 items-end">
             <div className="space-y-1.5">
               <Label htmlFor="inv-amount" className="text-xs">Kwota (PLN)</Label>
@@ -85,19 +84,14 @@ export function InvestmentForm() {
           </div>
           <input type="hidden" name="ticker" value="VWCE.DE" />
           {data && (
-            <p className="text-xs text-muted-foreground">
-              VWCE: <span className="font-medium">{data.priceEur.toFixed(2)} EUR</span>
-              {" · "}
-              EUR/PLN: <span className="font-medium">{data.eurPln.toFixed(4)}</span>
-              {" · "}
-              1 szt = <span className="font-medium">{data.pricePln.toFixed(2)} PLN</span>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+              <span>VWCE: <span className="font-medium">{data.priceEur.toFixed(2)} EUR</span></span>
+              <span>EUR/PLN: <span className="font-medium">{data.eurPln.toFixed(4)}</span></span>
+              <span>1 szt = <span className="font-medium">{data.pricePln.toFixed(2)} PLN</span></span>
               {estimatedUnits !== null && (
-                <>
-                  {" · "}
-                  ~<span className="font-medium">{estimatedUnits.toFixed(4)}</span> szt
-                </>
+                <span>~<span className="font-medium">{estimatedUnits.toFixed(4)}</span> szt</span>
               )}
-            </p>
+            </div>
           )}
         </form>
       </CardContent>

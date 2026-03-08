@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/prisma";
-import { getCurrentMonth, formatPLN } from "@/lib/utils";
+import { getCurrentMonth, formatPLN, isValidMonth } from "@/lib/utils";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 import { ExpenseTable } from "@/components/expenses/ExpenseTable";
 import { RecurringExpenses } from "@/components/expenses/RecurringExpenses";
-import { MonthFilter } from "@/components/income/MonthFilter";
+import { ExpensesDailyChart } from "@/components/expenses/ExpensesDailyChart";
 import { MetricCard } from "@/components/overview/MetricCard";
+import { ExpensePieChart } from "@/components/overview/ExpensePieChart";
 import { TrendingDown, Receipt, ShoppingCart } from "lucide-react";
 import { Suspense } from "react";
+import { StaggerGrid } from "@/components/ui/motion-wrappers";
 
 export const revalidate = 0;
 
@@ -16,7 +18,9 @@ interface Props {
 
 export default async function ExpensesPage({ searchParams }: Props) {
   const params = await searchParams;
-  const selectedMonth = params.month || getCurrentMonth();
+  const selectedMonth = isValidMonth(params.month)
+    ? params.month
+    : getCurrentMonth();
   const [year, month] = selectedMonth.split("-").map(Number);
   const startOfMonth = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
@@ -40,44 +44,57 @@ export default async function ExpensesPage({ searchParams }: Props) {
   const transactionCount = expenses.length;
   const avgTransaction = transactionCount > 0 ? totalThisMonth / transactionCount : 0;
 
+  const byCategory = new Map<string, number>();
+  for (const e of expenses) {
+    byCategory.set(e.category, (byCategory.get(e.category) || 0) + e.amount);
+  }
+  const categoryData = Array.from(byCategory.entries()).map(([category, amount]) => ({
+    category,
+    amount,
+  }));
+
+  const daysInMonth = endOfMonth.getDate();
+  const dayRows = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const byDay = new Map<number, number>();
+  for (const e of expenses) {
+    const day = e.date.getDate();
+    byDay.set(day, (byDay.get(day) || 0) + e.amount);
+  }
+  const dailyData = dayRows.map((day) => ({
+    day: `${day}`,
+    amount: byDay.get(day) || 0,
+  }));
+
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-red-500/10">
-              <TrendingDown className="h-5 w-5 text-red-500" />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight">Wydatki</h2>
-          </div>
-          <p className="text-sm text-muted-foreground ml-12">
-            Śledź wydatki i kontroluj budżet
-          </p>
-        </div>
-        <Suspense>
-          <MonthFilter />
-        </Suspense>
+    <div className="ag-page">
+      <div className="ag-toolbar">
+        <h1 className="ag-toolbar-title">Wydatki</h1>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <StaggerGrid className="grid gap-4 sm:grid-cols-3">
         <MetricCard
           title="Suma wydatków"
           value={formatPLN(totalThisMonth)}
-          icon={TrendingDown}
+          icon={<TrendingDown />}
           trend="down"
         />
         <MetricCard
           title="Transakcje"
           value={transactionCount.toString()}
-          icon={Receipt}
+          icon={<Receipt />}
           trend="neutral"
         />
         <MetricCard
           title="Średnia transakcja"
           value={formatPLN(avgTransaction)}
-          icon={ShoppingCart}
+          icon={<ShoppingCart />}
           trend="neutral"
         />
+      </StaggerGrid>
+
+      <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+        <ExpensesDailyChart data={dailyData} />
+        <ExpensePieChart data={categoryData} />
       </div>
 
       <RecurringExpenses data={recurringTemplates} currentMonth={selectedMonth} />

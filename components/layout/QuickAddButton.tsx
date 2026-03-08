@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
 import {
   Dialog,
   DialogContent,
@@ -95,13 +96,25 @@ export function QuickAddButton() {
 
   return (
     <>
-      <Button
-        onClick={() => setOpen(true)}
-        size="icon"
-        className="fixed bottom-20 right-6 z-50 h-12 w-12 rounded-full shadow-lg md:bottom-6"
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 0.5, duration: 0.3, ease: "easeOut" }}
+        className="fixed z-50"
+        style={{
+          right: "calc(env(safe-area-inset-right) + 1rem)",
+          bottom: "calc(env(safe-area-inset-bottom) + 1rem)",
+        }}
       >
-        <Plus className="h-5 w-5" />
-      </Button>
+        <Button
+          onClick={() => setOpen(true)}
+          size="icon"
+          className="h-14 w-14 rounded-[20px] border border-indigo-300/35 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-[0_14px_36px_-14px_rgba(99,102,241,0.85)] transition-all duration-200 hover:scale-105 hover:from-indigo-400 hover:to-indigo-500 hover:shadow-[0_18px_42px_-14px_rgba(99,102,241,0.95)]"
+          aria-label="Szybko dodaj transakcje"
+        >
+          <Plus className="h-5 w-5" />
+        </Button>
+      </motion.div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">

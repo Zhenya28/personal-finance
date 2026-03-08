@@ -38,15 +38,14 @@ export function SavingsForm() {
 
   return (
     <Card className="overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-400" />
-      <CardContent className="pt-5">
-        <div className="flex items-center gap-2.5 mb-4">
+      <CardContent className="pt-6">
+        <div className="mb-5 flex items-center gap-2.5">
           <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-amber-500/10">
             <Plus className="h-4 w-4 text-amber-500" />
           </div>
           <h3 className="font-semibold text-sm">Dodaj konto</h3>
         </div>
-        <form ref={formRef} action={handleSubmit} className="grid gap-3 sm:grid-cols-4 items-end">
+        <form ref={formRef} action={handleSubmit} className="grid items-end gap-3.5 sm:grid-cols-4">
           <div className="space-y-1.5">
             <Label className="text-xs">Nazwa</Label>
             <Input name="name" placeholder="np. Konto ING" required className="h-9" />

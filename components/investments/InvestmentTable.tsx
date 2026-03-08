@@ -40,15 +40,15 @@ export function InvestmentTable({ data }: { data: Investment[] }) {
 
   return (
     <Card>
-      <CardContent className="pt-5 px-0">
-        <div className="px-5 mb-3">
+      <CardContent className="px-0 pt-6">
+        <div className="mb-4 px-5">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Historia zakupow</p>
         </div>
         <div className="space-y-0 divide-y divide-border">
           {data.map((inv) => (
             <div
               key={inv.id}
-              className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-muted/30 transition-colors"
+              className="flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-muted/30"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="shrink-0">

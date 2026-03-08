@@ -16,12 +16,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { addIncome } from "@/actions/transactions";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import { isValidMonth } from "@/lib/utils";
 
 function getDefaultDate(monthParam: string | null): string {
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
 
-  if (!monthParam) return todayStr;
+  if (!isValidMonth(monthParam)) return todayStr;
 
   const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   if (monthParam === currentMonth) return todayStr;
@@ -50,15 +51,14 @@ export function IncomeForm() {
 
   return (
     <Card className="overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
-      <CardContent className="pt-5">
-        <div className="flex items-center gap-2.5 mb-4">
+      <CardContent className="pt-6">
+        <div className="mb-5 flex items-center gap-2.5">
           <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/10">
             <Plus className="h-4 w-4 text-emerald-500" />
           </div>
           <h3 className="font-semibold text-sm">Dodaj przychód</h3>
         </div>
-        <form action={handleSubmit} className="grid gap-3 sm:grid-cols-5 items-end">
+        <form action={handleSubmit} className="grid items-end gap-3.5 sm:grid-cols-5">
           <div className="space-y-1.5">
             <Label htmlFor="income-amount" className="text-xs">Kwota</Label>
             <Input

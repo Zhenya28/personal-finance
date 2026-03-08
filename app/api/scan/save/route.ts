@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { IncomeCategory, ExpenseCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import {
+  buildTransactionSignature,
+  sanitizeTransactionDescription,
+} from "@/lib/transaction-dedupe";
 
 const VALID_INCOME = ["WYPLATA_1", "WYPLATA_2", "INNE"];
 const VALID_EXPENSE = [
@@ -37,6 +41,7 @@ export async function POST(request: NextRequest) {
     console.log(`[scan/save] Saving ${transactions.length} ${type}s`);
 
     let savedCount = 0;
+    let skippedDuplicates = 0;
 
     for (const t of transactions) {
       // Use Math.abs — bank screenshots often show negative amounts for expenses
@@ -51,27 +56,73 @@ export async function POST(request: NextRequest) {
         dateVal.setFullYear(currentYear);
       }
 
-      console.log(`[scan/save] Saving: ${amount} ${t.category} "${t.description}" ${t.date}`);
+      const description = sanitizeTransactionDescription(t.description) || null;
 
       if (type === "income") {
         const cat = (t.category || "").toUpperCase();
         const category = VALID_INCOME.includes(cat) ? cat : "INNE";
+        const existingSameDate = await prisma.income.findMany({
+          where: { date: dateVal },
+          select: { amount: true, category: true, description: true, date: true },
+        });
+        const signature = buildTransactionSignature({
+          amount,
+          category,
+          description,
+          date: dateVal,
+        });
+        const isDuplicate = existingSameDate.some(
+          (row) =>
+            buildTransactionSignature({
+              amount: row.amount,
+              category: row.category,
+              description: row.description,
+              date: row.date,
+            }) === signature
+        );
+        if (isDuplicate) {
+          skippedDuplicates++;
+          continue;
+        }
         await prisma.income.create({
           data: {
             amount,
             category: category as IncomeCategory,
-            description: t.description || null,
+            description,
             date: dateVal,
           },
         });
       } else {
         const cat = (t.category || "").toUpperCase();
         const category = VALID_EXPENSE.includes(cat) ? cat : "OTHER";
+        const existingSameDate = await prisma.expense.findMany({
+          where: { date: dateVal },
+          select: { amount: true, category: true, description: true, date: true },
+        });
+        const signature = buildTransactionSignature({
+          amount,
+          category,
+          description,
+          date: dateVal,
+        });
+        const isDuplicate = existingSameDate.some(
+          (row) =>
+            buildTransactionSignature({
+              amount: row.amount,
+              category: row.category,
+              description: row.description,
+              date: row.date,
+            }) === signature
+        );
+        if (isDuplicate) {
+          skippedDuplicates++;
+          continue;
+        }
         await prisma.expense.create({
           data: {
             amount,
             category: category as ExpenseCategory,
-            description: t.description || null,
+            description,
             date: dateVal,
           },
         });
@@ -80,10 +131,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (savedCount === 0) {
-      return NextResponse.json(
-        { error: "Żadna transakcja nie została zapisana (kwoty = 0)" },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        saved: 0,
+        skipped: skippedDuplicates,
+        message: skippedDuplicates
+          ? "Wszystkie pozycje to duplikaty albo kwoty 0"
+          : "Żadna transakcja nie została zapisana (kwoty = 0)",
+      });
     }
 
     revalidatePath("/");
@@ -91,7 +145,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`[scan/save] Saved ${savedCount} ${type}s OK`);
 
-    return NextResponse.json({ saved: savedCount });
+    return NextResponse.json({ saved: savedCount, skipped: skippedDuplicates });
   } catch (error) {
     console.error("[scan/save] Error:", error);
     return NextResponse.json(

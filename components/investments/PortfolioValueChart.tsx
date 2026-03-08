@@ -23,28 +23,29 @@ export function PortfolioValueChart({ data }: { data: ValuePoint[] }) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="h-1 bg-gradient-to-r from-violet-500 to-purple-400" />
-      <CardContent className="pt-5">
-        <div className="flex items-center gap-2.5 mb-5">
-          <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-violet-500/10">
-            <TrendingUp className="h-4 w-4 text-violet-500" />
+      <CardContent className="pt-6">
+        <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-violet-500/10 shrink-0">
+              <TrendingUp className="h-4 w-4 text-violet-500" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-sm truncate">Portfolio vs zainwestowane</h3>
+              <p className="text-xs text-muted-foreground">Porownanie w czasie</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-semibold text-sm">Wartosc portfolio vs zainwestowane</h3>
-            <p className="text-xs text-muted-foreground">Porownanie wartosci w czasie</p>
-          </div>
-          <div className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-3 text-[10px] sm:text-xs text-muted-foreground ml-10 sm:ml-0">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-violet-500" />
+              <span className="h-2 w-2 rounded-full bg-violet-500 shrink-0" />
               Wartosc
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-gray-400" />
+              <span className="h-2 w-2 rounded-full bg-gray-400 shrink-0" />
               Zainwestowane
             </span>
           </div>
         </div>
-        <ResponsiveContainer width="100%" height={260}>
+        <ResponsiveContainer width="100%" height={220}>
           <AreaChart data={data}>
             <defs>
               <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
@@ -79,8 +80,8 @@ export function PortfolioValueChart({ data }: { data: ValuePoint[] }) {
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "hsl(var(--card))",
-                border: "1px solid hsl(var(--border))",
+                backgroundColor: "var(--card)",
+                border: "1px solid var(--border)",
                 borderRadius: "8px",
                 fontSize: "12px",
               }}

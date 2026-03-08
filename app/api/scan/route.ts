@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
         if (parsed.error && parsed.error.message) {
           errorMessage = `Błąd: ${parsed.error.message}`;
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
 

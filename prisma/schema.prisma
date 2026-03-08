@@ -81,3 +81,31 @@ model RecurringExpense {
   active      Boolean         @default(true)
   createdAt   DateTime        @default(now())
 }
+
+model CategoryRule {
+  id          String          @id @default(cuid())
+  pattern     String
+  type        String          @default("expense") // "expense" | "income"
+  category    String
+  createdAt   DateTime        @default(now())
+
+  @@unique([pattern, type])
+}
+
+model CalculatorMonthlyResult {
+  id            String   @id @default(cuid())
+  month         String   @unique // YYYY-MM
+  hoursP1       Float    @default(0)
+  hoursP2       Float    @default(0)
+  totalKm       Float    @default(0)
+  weekdayOrders Int      @default(0)
+  weekendOrders Int      @default(0)
+  tips          Float    @default(0)
+  payoutPeriod1 Float    @default(0)
+  payoutPeriod2 Float    @default(0)
+  total         Float    @default(0)
+  isFinalized   Boolean  @default(false)
+  finalizedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

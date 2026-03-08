@@ -202,19 +202,9 @@ export default function ScanPage() {
   const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto" onPaste={handlePaste}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-violet-500/10">
-              <Sparkles className="h-5 w-5 text-violet-500" />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight">Skaner AI</h2>
-          </div>
-          <p className="text-sm text-muted-foreground ml-12">
-            Skanuj paragony i wyciagi automatycznie
-          </p>
-        </div>
+    <div className="ag-page" onPaste={handlePaste}>
+      <div className="ag-toolbar">
+        <h1 className="ag-toolbar-title">Skaner AI</h1>
         <div className="flex gap-2">
           <Button
             variant={type === "expense" ? "default" : "outline"}
@@ -241,10 +231,37 @@ export default function ScanPage() {
         </div>
       </div>
 
+      <div className="ag-card">
+        <div className="ag-inline-row">
+          <p className="ag-overline">Vision Assistant</p>
+          <span className="ag-pill">
+            <Sparkles className="h-3.5 w-3.5" />
+            {type === "income" ? "Tryb przychodow" : "Tryb wydatkow"}
+          </span>
+        </div>
+        <p className="mt-2 text-sm text-white/65">
+          Skanuj paragony i wyciagi, a aplikacja automatycznie zaproponuje transakcje do zapisania.
+        </p>
+        <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
+          <div className="rounded-xl border border-white/[0.1] bg-white/[0.03] px-3 py-2.5">
+            <p className="ag-overline">Tryb</p>
+            <p className="mt-1 text-sm font-semibold text-white">{type === "income" ? "Przychody" : "Wydatki"}</p>
+          </div>
+          <div className="rounded-xl border border-white/[0.1] bg-white/[0.03] px-3 py-2.5">
+            <p className="ag-overline">Wykryte pozycje</p>
+            <p className="mt-1 text-sm font-semibold text-white">{transactions.length}</p>
+            <p className="mt-0.5 text-[11px] text-white/55">{scanned ? "po ostatnim skanie" : "brak skanu"}</p>
+          </div>
+          <div className="rounded-xl border border-white/[0.1] bg-white/[0.03] px-3 py-2.5">
+            <p className="ag-overline">Suma zaznaczonych</p>
+            <p className="mt-1 text-sm font-semibold text-white">{formatPLN(totalAmount)}</p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left: Image upload */}
         <Card className="overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-violet-500 to-purple-400" />
           <CardContent className="pt-5">
             <div className="flex items-center gap-2.5 mb-4">
               <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-violet-500/10">
@@ -325,7 +342,6 @@ export default function ScanPage() {
 
         {/* Right: Results */}
         <Card className="overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-violet-500 to-indigo-400" />
           <CardContent className="pt-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2.5">
@@ -400,7 +416,7 @@ export default function ScanPage() {
                               updateTransaction(i, "category", v)
                             }
                           >
-                            <SelectTrigger className="h-8 text-sm">
+                            <SelectTrigger className="h-8 text-xs sm:text-sm">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

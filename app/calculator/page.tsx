@@ -1,23 +1,27 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { cn, formatPLN } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Clock,
   Bike,
   Package,
   Banknote,
-  Calculator,
   CalendarDays,
   Coins,
   Smartphone,
   Shirt,
   Zap,
   HandCoins,
+  Save,
+  Lock,
+  Loader2,
 } from "lucide-react";
 
 // --- CONSTANTS ---
@@ -54,6 +58,26 @@ const ORDER_TIERS = [
   { range: "550+", min: 550, wd: 2.5, we: 5 },
 ];
 
+const MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+type MonthlyResult = {
+  id: string;
+  month: string;
+  hoursP1: number;
+  hoursP2: number;
+  totalKm: number;
+  weekdayOrders: number;
+  weekendOrders: number;
+  tips: number;
+  payoutPeriod1: number;
+  payoutPeriod2: number;
+  total: number;
+  isFinalized: boolean;
+  finalizedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 function getMultiplier(
   totalOrders: number,
   table: typeof WEEKDAY_MULTIPLIERS
@@ -79,14 +103,74 @@ function getActiveTierIndex(totalOrders: number): number {
   return 0;
 }
 
+function getCurrentMonth(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function toInputValue(value: number): string {
+  if (value === 0) return "0";
+  return Number.isInteger(value) ? String(value) : String(value);
+}
+
+function formatDateTime(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+async function extractErrorMessage(
+  response: Response,
+  fallback: string
+): Promise<string> {
+  try {
+    const data = (await response.json()) as { error?: string };
+    if (data.error) return data.error;
+  } catch {
+    // ignore and use fallback
+  }
+  return fallback;
+}
+
+function renderIconWithClass(
+  icon: React.ReactNode,
+  className: string
+): React.ReactNode {
+  if (!React.isValidElement<{ className?: string }>(icon)) {
+    return icon;
+  }
+
+  return React.cloneElement(icon, {
+    className: cn(className, icon.props.className),
+  });
+}
+
 // --- COMPONENT ---
 export default function CalculatorPage() {
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth);
+
   const [hoursP1, setHoursP1] = useState("");
   const [hoursP2, setHoursP2] = useState("");
   const [totalKm, setTotalKm] = useState("");
   const [weekdayOrders, setWeekdayOrders] = useState("");
   const [weekendOrders, setWeekendOrders] = useState("");
   const [tips, setTips] = useState("");
+
+  const [isMonthLoading, setIsMonthLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isFinalized, setIsFinalized] = useState(false);
+  const [confirmMonthEnd, setConfirmMonthEnd] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [finalizedAt, setFinalizedAt] = useState<string | null>(null);
 
   const calc = useMemo(() => {
     const h1 = parseFloat(hoursP1) || 0;
@@ -136,23 +220,160 @@ export default function CalculatorPage() {
     };
   }, [hoursP1, hoursP2, totalKm, weekdayOrders, weekendOrders, tips]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMonthData() {
+      if (!MONTH_REGEX.test(selectedMonth)) {
+        setIsMonthLoading(false);
+        return;
+      }
+
+      setIsMonthLoading(true);
+      setConfirmMonthEnd(false);
+
+      try {
+        const response = await fetch(
+          `/api/calculator/monthly?month=${selectedMonth}`,
+          {
+            cache: "no-store",
+          }
+        );
+
+        if (!response.ok) {
+          const message = await extractErrorMessage(
+            response,
+            "Nie udalo sie pobrac danych miesiaca."
+          );
+          throw new Error(message);
+        }
+
+        const data = (await response.json()) as { record: MonthlyResult | null };
+        if (cancelled) return;
+
+        if (!data.record) {
+          setHoursP1("");
+          setHoursP2("");
+          setTotalKm("");
+          setWeekdayOrders("");
+          setWeekendOrders("");
+          setTips("");
+          setIsFinalized(false);
+          setSavedAt(null);
+          setFinalizedAt(null);
+          return;
+        }
+
+        setHoursP1(toInputValue(data.record.hoursP1));
+        setHoursP2(toInputValue(data.record.hoursP2));
+        setTotalKm(toInputValue(data.record.totalKm));
+        setWeekdayOrders(toInputValue(data.record.weekdayOrders));
+        setWeekendOrders(toInputValue(data.record.weekendOrders));
+        setTips(toInputValue(data.record.tips));
+        setIsFinalized(data.record.isFinalized);
+        setSavedAt(data.record.updatedAt);
+        setFinalizedAt(data.record.finalizedAt);
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : "Nie udalo sie pobrac danych miesiaca."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsMonthLoading(false);
+        }
+      }
+    }
+
+    loadMonthData();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMonth]);
+
+  async function saveMonth(finalize: boolean) {
+    if (isFinalized) {
+      toast.error("Ten miesiac jest juz zamkniety i nie mozna go zmieniac.");
+      return;
+    }
+
+    if (finalize && !confirmMonthEnd) {
+      toast.error("Potwierdz checkbox, ze miesiac jest zakonczony.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/calculator/monthly", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          month: selectedMonth,
+          hoursP1: calc.h1,
+          hoursP2: calc.h2,
+          totalKm: calc.km,
+          weekdayOrders: calc.wdOrders,
+          weekendOrders: calc.weOrders,
+          tips: calc.tipsVal,
+          payoutPeriod1: calc.wyplata2,
+          payoutPeriod2: calc.wyplata1,
+          total: calc.total,
+          finalize,
+        }),
+      });
+
+      if (!response.ok) {
+        const message = await extractErrorMessage(
+          response,
+          "Nie udalo sie zapisac miesiaca."
+        );
+        throw new Error(message);
+      }
+
+      const data = (await response.json()) as { record: MonthlyResult };
+      const record = data.record;
+
+      setHoursP1(toInputValue(record.hoursP1));
+      setHoursP2(toInputValue(record.hoursP2));
+      setTotalKm(toInputValue(record.totalKm));
+      setWeekdayOrders(toInputValue(record.weekdayOrders));
+      setWeekendOrders(toInputValue(record.weekendOrders));
+      setTips(toInputValue(record.tips));
+      setIsFinalized(record.isFinalized);
+      setSavedAt(record.updatedAt);
+      setFinalizedAt(record.finalizedAt);
+
+      if (record.isFinalized) {
+        setConfirmMonthEnd(false);
+      }
+
+      toast.success(
+        record.isFinalized
+          ? "Miesiac zostal zapisany i zamkniety."
+          : "Miesiac zostal zapisany."
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Nie udalo sie zapisac miesiaca."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   const activeTier = getActiveTierIndex(calc.totalOrders);
+  const hasValidMonth = MONTH_REGEX.test(selectedMonth);
+  const inputsLocked = isFinalized || isMonthLoading || isSaving;
+  const savedAtLabel = formatDateTime(savedAt);
+  const finalizedAtLabel = formatDateTime(finalizedAt);
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      {/* Page header */}
-      <div>
-        <div className="flex items-center gap-3 mb-1">
-          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-primary/10">
-            <Calculator className="h-5 w-5 text-primary" />
-          </div>
-          <h2 className="text-2xl font-bold tracking-tight">
-            Kalkulator Wyplat
-          </h2>
-        </div>
-        <p className="text-sm text-muted-foreground ml-12">
-          Oblicz wyplate na podstawie godzin, zamowien i bonusow
-        </p>
+    <div className="ag-page">
+      <div className="ag-toolbar">
+        <h1 className="ag-toolbar-title">Kalkulator Wyplat</h1>
       </div>
 
       {/* Hero summary cards */}
@@ -161,47 +382,179 @@ export default function CalculatorPage() {
           label="Wyplata 2"
           sublabel="25 dnia"
           value={calc.wyplata2}
-          icon={CalendarDays}
+          icon={<CalendarDays />}
           color="blue"
         />
         <SummaryCard
           label="Wyplata 1"
           sublabel="10 dnia"
           value={calc.wyplata1}
-          icon={Banknote}
+          icon={<Banknote />}
           color="emerald"
         />
         <SummaryCard
           label="Lacznie"
           sublabel="caly miesiac"
           value={calc.total}
-          icon={Coins}
+          icon={<Coins />}
           color="violet"
           highlight
         />
       </div>
 
+      {/* Month save and finalize */}
+      <Card className="overflow-hidden">
+        <CardContent className="space-y-6 pt-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10">
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm">Miesiac rozliczenia</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Podglad i zapis wyniku miesiecznego
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                W tym miejscu zapisujesz caly miesiac z podzialem na okres 1-15 oraz 16-31.
+              </p>
+            </div>
+
+            <div className="flex items-end gap-3 flex-wrap">
+              <div className="space-y-1.5 min-w-[190px]">
+                <Label htmlFor="calc-month" className="text-xs font-medium">
+                  Miesiac
+                </Label>
+                <Input
+                  id="calc-month"
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    setSelectedMonth(e.target.value);
+                  }}
+                  disabled={isSaving}
+                />
+              </div>
+              <div className="flex gap-2 items-center">
+                {isMonthLoading ? (
+                  <Badge variant="secondary" className="gap-1.5">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Wczytywanie
+                  </Badge>
+                ) : null}
+                {isFinalized && <Badge variant="secondary">Miesiac zamkniety</Badge>}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <SavedSplitCard
+              label="Okres 1-15"
+              detail="Wyplata 2 (25 dnia)"
+              value={calc.wyplata2}
+            />
+            <SavedSplitCard
+              label="Okres 16-31"
+              detail="Wyplata 1 (10 dnia)"
+              value={calc.wyplata1}
+            />
+            <SavedSplitCard
+              label="Caly miesiac"
+              detail="Suma obu okresow"
+              value={calc.total}
+              emphasize
+            />
+          </div>
+
+          <div className="rounded-xl border border-border/70 bg-muted/35 p-3">
+            <label
+              htmlFor="month-end-confirmation"
+              className={cn(
+                "flex items-start gap-3 text-xs leading-5",
+                isFinalized ? "text-muted-foreground/70" : "text-muted-foreground"
+              )}
+            >
+              <input
+                id="month-end-confirmation"
+                type="checkbox"
+                checked={confirmMonthEnd}
+                onChange={(e) => setConfirmMonthEnd(e.target.checked)}
+                disabled={isFinalized || isMonthLoading || isSaving}
+                className="mt-0.5 h-4 w-4 rounded border-border bg-background text-primary"
+              />
+              <span>
+                Potwierdzam, ze to na pewno koniec miesiaca: wszystkie godziny sa wpisane,
+                wszystkie zamowienia rozliczone i nie bedzie juz nowych danych do tego miesiaca.
+              </span>
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => saveMonth(false)}
+              disabled={isMonthLoading || isSaving || isFinalized || !hasValidMonth}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Zapisywanie
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Zapisz miesiac
+                </>
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => saveMonth(true)}
+              disabled={
+                isMonthLoading ||
+                isSaving ||
+                isFinalized ||
+                !confirmMonthEnd ||
+                !hasValidMonth
+              }
+            >
+              <Lock className="h-4 w-4" />
+              Zapisz i zamknij miesiac
+            </Button>
+            <p className="text-xs text-muted-foreground sm:ml-2">
+              Po zamknieciu miesiaca pola kalkulatora sa tylko do odczytu.
+            </p>
+          </div>
+
+          {(savedAtLabel || finalizedAtLabel) && (
+            <div className="text-xs text-muted-foreground space-y-1">
+              {savedAtLabel && <p>Ostatni zapis: {savedAtLabel}</p>}
+              {finalizedAtLabel && <p>Miesiac zamkniety: {finalizedAtLabel}</p>}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Input section */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Hours card */}
         <Card className="overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
-          <CardContent className="pt-5 space-y-5">
+          <CardContent className="space-y-6 pt-6">
             <div className="flex items-center gap-2.5">
               <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
                 <Clock className="h-4 w-4 text-blue-500" />
               </div>
               <div>
                 <h3 className="font-semibold text-sm">Godziny pracy</h3>
-                <p className="text-xs text-muted-foreground">
-                  Stawka: {HOURLY_RATE} zl/h
-                </p>
+                <p className="text-xs text-muted-foreground">Stawka: {HOURLY_RATE} zl/h</p>
               </div>
               {calc.totalHours > 0 && (
-                <Badge
-                  variant="secondary"
-                  className="ml-auto text-xs font-normal"
-                >
+                <Badge variant="secondary" className="ml-auto text-xs font-normal">
                   {calc.totalHours}h lacznie
                 </Badge>
               )}
@@ -219,6 +572,7 @@ export default function CalculatorPage() {
                 value={hoursP1}
                 onChange={setHoursP1}
                 suffix="h"
+                disabled={inputsLocked}
               />
               <InputField
                 id="h2"
@@ -231,6 +585,7 @@ export default function CalculatorPage() {
                 value={hoursP2}
                 onChange={setHoursP2}
                 suffix="h"
+                disabled={inputsLocked}
               />
             </div>
           </CardContent>
@@ -238,19 +593,14 @@ export default function CalculatorPage() {
 
         {/* Km + Orders + Tips card */}
         <Card className="overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
-          <CardContent className="pt-5 space-y-5">
+          <CardContent className="space-y-6 pt-6">
             <div className="flex items-center gap-2.5">
               <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/10">
                 <Bike className="h-4 w-4 text-emerald-500" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">
-                  Kilometry, zamowienia, napiwki
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Dodatkowe bonusy do Wyplaty 1
-                </p>
+                <h3 className="font-semibold text-sm">Kilometry, zamowienia, napiwki</h3>
+                <p className="text-xs text-muted-foreground">Dodatkowe bonusy do Wyplaty 1</p>
               </div>
             </div>
 
@@ -265,6 +615,7 @@ export default function CalculatorPage() {
               value={totalKm}
               onChange={setTotalKm}
               suffix="km"
+              disabled={inputsLocked}
             />
 
             <div className="grid grid-cols-2 gap-4">
@@ -276,6 +627,7 @@ export default function CalculatorPage() {
                 placeholder="0"
                 value={weekdayOrders}
                 onChange={setWeekdayOrders}
+                disabled={inputsLocked}
               />
               <InputField
                 id="we"
@@ -285,6 +637,7 @@ export default function CalculatorPage() {
                 placeholder="0"
                 value={weekendOrders}
                 onChange={setWeekendOrders}
+                disabled={inputsLocked}
               />
             </div>
 
@@ -299,6 +652,7 @@ export default function CalculatorPage() {
               value={tips}
               onChange={setTips}
               suffix="zl"
+              disabled={inputsLocked}
             />
           </CardContent>
         </Card>
@@ -306,10 +660,9 @@ export default function CalculatorPage() {
 
       {/* Breakdown section */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Wypłata 2 breakdown */}
+        {/* Wyplata 2 breakdown */}
         <Card className="overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-400" />
-          <CardContent className="pt-5 space-y-4">
+          <CardContent className="space-y-5 pt-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-blue-500/10">
@@ -317,19 +670,17 @@ export default function CalculatorPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-sm">Wyplata 2 — 25 dnia</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Godziny z okresu 1-15
-                  </p>
+                  <p className="text-xs text-muted-foreground">Godziny z okresu 1-15</p>
                 </div>
               </div>
-              <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+              <span className="text-lg font-bold text-blue-400">
                 {formatPLN(calc.wyplata2)}
               </span>
             </div>
 
-            <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+            <div className="space-y-2.5 rounded-xl border border-white/[0.08] bg-white/[0.04] p-4">
               <BreakdownRow
-                icon={Clock}
+                icon={<Clock />}
                 label="Godziny"
                 detail={`${calc.h1}h x ${HOURLY_RATE} zl`}
                 value={calc.baseP1}
@@ -338,44 +689,39 @@ export default function CalculatorPage() {
           </CardContent>
         </Card>
 
-        {/* Wypłata 1 breakdown */}
+        {/* Wyplata 1 breakdown */}
         <Card className="overflow-hidden">
-          <div className="h-1 bg-gradient-to-r from-emerald-500 to-emerald-400" />
-          <CardContent className="pt-5 space-y-4">
+          <CardContent className="space-y-5 pt-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-emerald-500/10">
                   <Banknote className="h-4 w-4 text-emerald-500" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-sm">
-                    Wyplata 1 — 10 dnia
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Godziny 16-31 + wszystkie bonusy
-                  </p>
+                  <h3 className="font-semibold text-sm">Wyplata 1 — 10 dnia</h3>
+                  <p className="text-xs text-muted-foreground">Godziny 16-31 + wszystkie bonusy</p>
                 </div>
               </div>
-              <span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="text-lg font-bold text-emerald-400">
                 {formatPLN(calc.wyplata1)}
               </span>
             </div>
 
-            <div className="rounded-lg bg-muted/50 p-3 space-y-2">
+            <div className="space-y-2.5 rounded-xl border border-white/[0.08] bg-white/[0.04] p-4">
               <BreakdownRow
-                icon={Clock}
+                icon={<Clock />}
                 label="Godziny"
                 detail={`${calc.h2}h x ${HOURLY_RATE} zl`}
                 value={calc.baseP2}
               />
               <BreakdownRow
-                icon={Shirt}
+                icon={<Shirt />}
                 label="Pranie"
                 detail={`${calc.totalHours}h x ${LAUNDRY_RATE} zl`}
                 value={calc.totalLaundry}
               />
               <BreakdownRow
-                icon={Smartphone}
+                icon={<Smartphone />}
                 label="Bonus telefon"
                 detail={
                   calc.totalHours <= 40
@@ -385,22 +731,18 @@ export default function CalculatorPage() {
                 value={calc.totalPhoneBonus}
               />
               <BreakdownRow
-                icon={Bike}
+                icon={<Bike />}
                 label="Kilometry"
                 detail={`${calc.km} km x ${KM_RATE} zl`}
                 value={calc.kmBonus}
               />
               <BreakdownRow
-                icon={Package}
+                icon={<Package />}
                 label="Bonusy zamowien"
                 detail={`${calc.wdOrders} x${calc.wdMultiplier} + ${calc.weOrders} x${calc.weMultiplier}`}
                 value={calc.orderBonus}
               />
-              <BreakdownRow
-                icon={HandCoins}
-                label="Napiwki"
-                value={calc.tipsVal}
-              />
+              <BreakdownRow icon={<HandCoins />} label="Napiwki" value={calc.tipsVal} />
             </div>
           </CardContent>
         </Card>
@@ -408,8 +750,7 @@ export default function CalculatorPage() {
 
       {/* Order tier indicator */}
       <Card className="overflow-hidden">
-        <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-400" />
-        <CardContent className="pt-5 space-y-4">
+        <CardContent className="space-y-5 pt-6">
           <div className="flex items-center gap-2.5">
             <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-amber-500/10">
               <Zap className="h-4 w-4 text-amber-500" />
@@ -424,30 +765,18 @@ export default function CalculatorPage() {
             </div>
             {calc.totalOrders > 0 && (
               <div className="ml-auto flex items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className="text-xs font-normal gap-1"
-                >
-                  pon-czw:{" "}
-                  <span className="font-semibold">
-                    x{calc.wdMultiplier} zl
-                  </span>
+                <Badge variant="outline" className="text-xs font-normal gap-1">
+                  pon-czw: <span className="font-semibold">x{calc.wdMultiplier} zl</span>
                 </Badge>
-                <Badge
-                  variant="outline"
-                  className="text-xs font-normal gap-1"
-                >
-                  pt-ndz:{" "}
-                  <span className="font-semibold">
-                    x{calc.weMultiplier} zl
-                  </span>
+                <Badge variant="outline" className="text-xs font-normal gap-1">
+                  pt-ndz: <span className="font-semibold">x{calc.weMultiplier} zl</span>
                 </Badge>
               </div>
             )}
           </div>
 
           {/* Tier steps */}
-          <div className="grid grid-cols-6 gap-1.5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
             {ORDER_TIERS.map((tier, i) => {
               const isActive = i === activeTier;
               const isPast = i < activeTier;
@@ -475,7 +804,7 @@ export default function CalculatorPage() {
                       className={cn(
                         "text-xs font-semibold",
                         isActive
-                          ? "text-amber-600 dark:text-amber-400"
+                          ? "text-amber-400"
                           : "text-muted-foreground"
                       )}
                     >
@@ -485,9 +814,7 @@ export default function CalculatorPage() {
                       <p
                         className={cn(
                           "text-[10px]",
-                          isActive
-                            ? "text-foreground"
-                            : "text-muted-foreground/70"
+                          isActive ? "text-foreground" : "text-muted-foreground/70"
                         )}
                       >
                         pon-czw: x{tier.wd}
@@ -495,9 +822,7 @@ export default function CalculatorPage() {
                       <p
                         className={cn(
                           "text-[10px]",
-                          isActive
-                            ? "text-foreground"
-                            : "text-muted-foreground/70"
+                          isActive ? "text-foreground" : "text-muted-foreground/70"
                         )}
                       >
                         pt-ndz: x{tier.we}
@@ -520,14 +845,14 @@ function SummaryCard({
   label,
   sublabel,
   value,
-  icon: Icon,
+  icon,
   color,
   highlight,
 }: {
   label: string;
   sublabel: string;
   value: number;
-  icon: React.ElementType;
+  icon: React.ReactNode;
   color: "blue" | "emerald" | "violet";
   highlight?: boolean;
 }) {
@@ -535,13 +860,13 @@ function SummaryCard({
     blue: {
       bg: "bg-blue-500/10",
       icon: "text-blue-500",
-      value: "text-blue-600 dark:text-blue-400",
+      value: "text-blue-400",
       gradient: "from-blue-500/5 to-transparent",
     },
     emerald: {
       bg: "bg-emerald-500/10",
       icon: "text-emerald-500",
-      value: "text-emerald-600 dark:text-emerald-400",
+      value: "text-emerald-400",
       gradient: "from-emerald-500/5 to-transparent",
     },
     violet: {
@@ -560,32 +885,45 @@ function SummaryCard({
         highlight && "ring-1 ring-violet-500/20 border-violet-500/30"
       )}
     >
-      <div
-        className={cn(
-          "absolute inset-0 bg-gradient-to-br opacity-50",
-          c.gradient
-        )}
-      />
+      <div className={cn("absolute inset-0 bg-gradient-to-br opacity-50", c.gradient)} />
       <CardContent className="relative pt-5 pb-5">
         <div className="flex items-center gap-2 mb-3">
-          <div
-            className={cn(
-              "flex items-center justify-center h-7 w-7 rounded-md",
-              c.bg
-            )}
-          >
-            <Icon className={cn("h-3.5 w-3.5", c.icon)} />
+          <div className={cn("flex items-center justify-center h-7 w-7 rounded-md", c.bg)}>
+            {renderIconWithClass(icon, cn("h-3.5 w-3.5", c.icon))}
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground">{label}</p>
             <p className="text-[10px] text-muted-foreground/60">{sublabel}</p>
           </div>
         </div>
-        <p className={cn("text-2xl font-bold tracking-tight", c.value)}>
-          {formatPLN(value)}
-        </p>
+        <p className={cn("text-2xl font-bold tracking-tight", c.value)}>{formatPLN(value)}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function SavedSplitCard({
+  label,
+  detail,
+  value,
+  emphasize,
+}: {
+  label: string;
+  detail: string;
+  value: number;
+  emphasize?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-border/70 bg-muted/30 px-4 py-3.5",
+        emphasize && "bg-primary/5 border-primary/30"
+      )}
+    >
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={cn("text-lg font-semibold mt-1", emphasize && "text-primary")}>{formatPLN(value)}</p>
+      <p className="text-[11px] text-muted-foreground mt-0.5">{detail}</p>
+    </div>
   );
 }
 
@@ -611,9 +949,7 @@ function InputField({
         <Label htmlFor={id} className="text-xs font-medium">
           {label}
         </Label>
-        {hint && (
-          <span className="text-[10px] text-muted-foreground">{hint}</span>
-        )}
+        {hint && <span className="text-[10px] text-muted-foreground">{hint}</span>}
       </div>
       <div className="relative">
         <Input
@@ -634,20 +970,20 @@ function InputField({
 }
 
 function BreakdownRow({
-  icon: Icon,
+  icon,
   label,
   detail,
   value,
 }: {
-  icon: React.ElementType;
+  icon: React.ReactNode;
   label: string;
   detail?: string;
   value: number;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 py-1">
+    <div className="flex items-center justify-between gap-2 py-1.5">
       <div className="flex items-center gap-2 min-w-0">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+        {renderIconWithClass(icon, "h-3.5 w-3.5 text-muted-foreground/60 shrink-0")}
         <span className="text-sm text-muted-foreground truncate">{label}</span>
         {detail && (
           <span className="text-[10px] text-muted-foreground/50 truncate hidden sm:inline">

@@ -1,30 +1,34 @@
+"use client";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { type LucideIcon } from "lucide-react";
+import { type ReactNode } from "react";
+import { motion } from "framer-motion";
+import { staggerItem } from "@/lib/motion";
 
 interface MetricCardProps {
   title: string;
   value: string;
   subtitle?: string;
-  icon: LucideIcon;
+  icon: ReactNode;
   trend?: "up" | "down" | "neutral";
 }
 
 const trendConfig = {
   up: {
-    value: "text-emerald-600 dark:text-emerald-400",
+    value: "text-white",
     bg: "bg-emerald-500/10",
-    icon: "text-emerald-500",
+    icon: "text-emerald-400",
   },
   down: {
-    value: "text-red-500 dark:text-red-400",
+    value: "text-white",
     bg: "bg-red-500/10",
-    icon: "text-red-500",
+    icon: "text-red-400",
   },
   neutral: {
-    value: "text-foreground",
-    bg: "bg-muted",
-    icon: "text-muted-foreground",
+    value: "text-white",
+    bg: "bg-white/[0.06]",
+    icon: "text-white/50",
   },
 };
 
@@ -32,41 +36,44 @@ export function MetricCard({
   title,
   value,
   subtitle,
-  icon: Icon,
+  icon,
   trend = "neutral",
 }: MetricCardProps) {
   const t = trendConfig[trend];
 
   return (
-    <Card className="relative overflow-hidden">
-      <CardContent className="pt-5 pb-5">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            {title}
-          </p>
-          <div
+    <motion.div variants={staggerItem}>
+      <Card className="relative overflow-hidden border border-border card-hover">
+        <CardContent className="pt-5 pb-5">
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/80">
+              {title}
+            </p>
+            <div
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0",
+                t.icon,
+                t.bg
+              )}
+            >
+              {icon}
+            </div>
+          </div>
+          <p
             className={cn(
-              "flex items-center justify-center h-8 w-8 rounded-lg",
-              t.bg
+              "font-mono text-3xl font-semibold tracking-[-0.02em] tabular-nums",
+              t.value
             )}
           >
-            <Icon className={cn("h-4 w-4", t.icon)} />
-          </div>
-        </div>
-        <p
-          className={cn(
-            "text-xl font-bold tracking-tight tabular-nums",
-            t.value
-          )}
-        >
-          {value}
-        </p>
-        {subtitle && (
-          <p className="text-[11px] text-muted-foreground mt-1 truncate">
-            {subtitle}
+            {value}
           </p>
-        )}
-      </CardContent>
-    </Card>
+          {subtitle && (
+            <p className="mt-1 truncate text-xs text-muted-foreground">
+              {subtitle}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

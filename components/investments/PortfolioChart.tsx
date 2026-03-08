@@ -50,12 +50,8 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
 
   return (
     <Card className="overflow-hidden">
-      <div className={cn(
-        "h-1 bg-gradient-to-r",
-        isPositive ? "from-emerald-500 to-green-400" : "from-red-500 to-orange-400"
-      )} />
-      <CardContent className="pt-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-5">
+      <CardContent className="pt-6">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
             <div className={cn(
               "flex items-center justify-center h-8 w-8 rounded-lg",
@@ -66,16 +62,16 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
             <div>
               <h3 className="font-semibold text-sm">{ticker} — Kurs ETF</h3>
               {data.length > 0 && (
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <span className="text-lg font-bold tabular-nums">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0 mt-0.5">
+                  <span className="text-base sm:text-lg font-bold tabular-nums">
                     {lastPrice.toFixed(2)} EUR
                   </span>
                   <span
                     className={cn(
-                      "text-xs font-medium",
+                      "text-[11px] sm:text-xs font-medium",
                       isPositive
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-red-600 dark:text-red-400"
+                        ? "text-emerald-400"
+                        : "text-red-400"
                     )}
                   >
                     {isPositive ? "+" : ""}
@@ -86,13 +82,13 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
               )}
             </div>
           </div>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {periods.map((p) => (
               <Button
                 key={p.value}
                 variant={period === p.value ? "default" : "ghost"}
                 size="sm"
-                className="h-7 px-2.5 text-xs"
+                className="h-7 px-2 text-xs"
                 onClick={() => setPeriod(p.value)}
               >
                 {p.label}
@@ -106,7 +102,7 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
             Brak danych dla tego okresu.
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={240}>
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
@@ -144,8 +140,8 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
+                  backgroundColor: "var(--card)",
+                  border: "1px solid var(--border)",
                   borderRadius: "8px",
                   fontSize: "12px",
                 }}
