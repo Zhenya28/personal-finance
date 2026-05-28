@@ -40,10 +40,14 @@ export function IncomeForm() {
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     try {
-      await addIncome(formData);
-      toast.success("Dodano przychód");
+      const result = await addIncome(formData);
+      if (result.ok) {
+        toast.success("Dodano przychod");
+      } else {
+        toast.error(result.error);
+      }
     } catch {
-      toast.error("Wystąpił błąd");
+      toast.error("Wystapil blad");
     } finally {
       setLoading(false);
     }

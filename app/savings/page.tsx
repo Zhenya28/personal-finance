@@ -3,36 +3,39 @@ import { SavingsSummary } from "@/components/savings/SavingsSummary";
 import { SavingsForm } from "@/components/savings/SavingsForm";
 import { SavingsAccountCard } from "@/components/savings/SavingsAccountCard";
 import { SavingsVisuals } from "@/components/savings/SavingsVisuals";
-import { getFxRate } from "@/lib/yahoo";
+import { SavingsTransactionForm } from "@/components/savings/SavingsTransactionForm";
+import { SavingsTransactionTable } from "@/components/savings/SavingsTransactionTable";
+import { getFxRatesToPln } from "@/lib/yahoo";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 async function getSavingsData() {
-  const accounts = await prisma.savingsAccount.findMany({
-    orderBy: { createdAt: "asc" },
-  });
+  const [accounts, transactions] = await Promise.all([
+    prisma.savingsAccount.findMany({
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, balance: true, currency: true, createdAt: true },
+    }),
+    prisma.savingsTransaction.findMany({
+      orderBy: { date: "desc" },
+      take: 50,
+      select: {
+        id: true,
+        type: true,
+        amount: true,
+        description: true,
+        date: true,
+        account: { select: { name: true, currency: true } },
+      },
+    }),
+  ]);
 
-  const currencies = [...new Set(accounts.map((a) => a.currency))].filter(
-    (c) => c !== "PLN"
-  );
+  const fxRates = await getFxRatesToPln(accounts.map((a) => a.currency));
 
-  const rateEntries = await Promise.all(
-    currencies.map(async (c) => {
-      const rate = await getFxRate(c, "PLN");
-      return [c, rate ?? 1] as [string, number];
-    })
-  );
-
-  const fxRates: Record<string, number> = { PLN: 1 };
-  for (const [c, r] of rateEntries) {
-    fxRates[c] = r;
-  }
-
-  return { accounts, fxRates };
+  return { accounts, transactions, fxRates };
 }
 
 export default async function SavingsPage() {
-  const { accounts, fxRates } = await getSavingsData();
+  const { accounts, transactions, fxRates } = await getSavingsData();
 
   const currencyBuckets = new Map<string, number>();
   for (const acc of accounts) {
@@ -50,17 +53,18 @@ export default async function SavingsPage() {
       amountPln: acc.balance * (fxRates[acc.currency] ?? 1),
     }))
     .sort((a, b) => b.amountPln - a.amountPln);
+
   return (
     <div className="ag-page">
       <div className="ag-toolbar">
         <h1 className="ag-toolbar-title">Oszczednosci</h1>
       </div>
 
+      {accounts.length === 0 ? <SavingsForm /> : null}
+
       <SavingsSummary accounts={accounts} fxRates={fxRates} />
 
       <SavingsVisuals currencyData={currencyData} accountData={accountData} />
-
-      <SavingsForm />
 
       {accounts.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -75,6 +79,12 @@ export default async function SavingsPage() {
           ))}
         </div>
       )}
+
+      <SavingsTransactionForm accounts={accounts.map((a) => ({ id: a.id, name: a.name, currency: a.currency }))} />
+
+      <SavingsTransactionTable data={transactions} />
+
+      {accounts.length > 0 ? <SavingsForm /> : null}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,18 +49,28 @@ export default function ScanPage() {
   const [scanned, setScanned] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Clean up object URL on unmount or when preview changes
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
   const categoryLabels =
     type === "income" ? INCOME_CATEGORY_LABELS : EXPENSE_CATEGORY_LABELS;
   const categoryKeys = Object.keys(categoryLabels);
 
-  const handleImageSelect = useCallback((file: File) => {
-    setImage(file);
-    setTransactions([]);
-    setScanned(false);
-    const reader = new FileReader();
-    reader.onload = (e) => setImagePreview(e.target?.result as string);
-    reader.readAsDataURL(file);
-  }, []);
+  const handleImageSelect = useCallback(
+    (file: File) => {
+      setImage(file);
+      setTransactions([]);
+      setScanned(false);
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      const objectUrl = URL.createObjectURL(file);
+      setImagePreview(objectUrl);
+    },
+    [imagePreview]
+  );
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -162,6 +172,7 @@ export default function ScanPage() {
 
       toast.success(`Zapisano ${data.saved} ${type === "income" ? "przychodow" : "wydatkow"}!`);
 
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
       setTransactions([]);
       setImage(null);
       setImagePreview(null);
@@ -193,6 +204,7 @@ export default function ScanPage() {
   };
 
   const clearAll = () => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImage(null);
     setImagePreview(null);
     setTransactions([]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,17 +40,25 @@ export function ExpenseTable({ data }: { data: Expense[] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const uniqueCategories = [...new Set(data.map((e) => e.category))];
+  const uniqueCategories = useMemo(
+    () => [...new Set(data.map((e) => e.category))],
+    [data]
+  );
+
   const hasActiveFilters = Boolean(searchQuery) || categoryFilter !== ALL;
 
-  const filtered = data
-    .filter((e) => categoryFilter === ALL || e.category === categoryFilter)
-    .filter(
-      (e) =>
-        !searchQuery ||
-        (e.description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.amount.toString().includes(searchQuery)
-    );
+  const filtered = useMemo(
+    () =>
+      data
+        .filter((e) => categoryFilter === ALL || e.category === categoryFilter)
+        .filter(
+          (e) =>
+            !searchQuery ||
+            (e.description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            e.amount.toString().includes(searchQuery)
+        ),
+    [data, categoryFilter, searchQuery]
+  );
 
   function resetFilters() {
     setCategoryFilter(ALL);
@@ -58,21 +66,18 @@ export function ExpenseTable({ data }: { data: Expense[] }) {
   }
 
   async function handleDelete(id: string) {
-    try {
-      await deleteExpense(id);
-      toast.success("Usunieto wydatek");
-    } catch {
-      toast.error("Wystapil blad");
-    }
+    const result = await deleteExpense(id);
+    if (result.ok) toast.success("Usunieto wydatek");
+    else toast.error(result.error);
   }
 
   async function handleEdit(formData: FormData) {
-    try {
-      await editExpense(formData);
+    const result = await editExpense(formData);
+    if (result.ok) {
       toast.success("Zaktualizowano wydatek");
       setEditingId(null);
-    } catch {
-      toast.error("Wystapil blad");
+    } else {
+      toast.error(result.error);
     }
   }
 
@@ -222,7 +227,7 @@ export function ExpenseTable({ data }: { data: Expense[] }) {
                       {EXPENSE_CATEGORY_LABELS[expense.category] || expense.category}
                     </Badge>
                     <span className="text-xs sm:text-sm text-muted-foreground truncate">
-                      {expense.description || "—"}
+                      {expense.description || "\u2014"}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 sm:gap-2 shrink-0">

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, sumByMonth } from "@/lib/prisma";
 import {
   ALL_MONTHS_VALUE,
   formatPLN,
@@ -14,11 +14,11 @@ import { NetWorthCard } from "@/components/overview/NetWorthCard";
 import { CashflowChart } from "@/components/overview/CashflowChart";
 import { ExpensePieChart } from "@/components/overview/ExpensePieChart";
 import { fetchVWCEData } from "@/actions/investments";
-import { getFxRate } from "@/lib/yahoo";
-import { Wallet, TrendingDown, Radar, ShieldCheck } from "lucide-react";
+import { getFxRatesToPln } from "@/lib/yahoo";
+import { Wallet, TrendingDown } from "lucide-react";
 import { StaggerGrid, FadeInSection } from "@/components/ui/motion-wrappers";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface Props {
   searchParams: Promise<{ month?: string }>;
@@ -35,7 +35,7 @@ async function getOverviewData(selectedMonth: string) {
   const prevMonthStart = new Date(year, month - 2, 1);
   const prevMonthEnd = new Date(year, month - 1, 0, 23, 59, 59);
 
-  const last6 = getLast6Months();
+  const last6 = getLast6Months(isAllMonths ? undefined : selectedMonth);
   const oldestMonth = last6[0].split("-").map(Number);
   const sixMonthsAgo = new Date(oldestMonth[0], oldestMonth[1] - 1, 1);
   const currentWindow = isAllMonths
@@ -51,8 +51,8 @@ async function getOverviewData(selectedMonth: string) {
     vwceData,
     expensesByCategory,
     incomesByCategory,
-    allIncomes6m,
-    allExpenses6m,
+    incomeMonthly,
+    expenseMonthly,
   ] = await Promise.all([
     prisma.expense.aggregate({
       _sum: { amount: true },
@@ -66,8 +66,12 @@ async function getOverviewData(selectedMonth: string) {
       _sum: { amount: true },
       where: { date: { gte: prevMonthStart, lte: prevMonthEnd } },
     }),
-    prisma.investment.findMany(),
-    prisma.savingsAccount.findMany(),
+    prisma.investment.findMany({
+      select: { units: true, pricePerUnit: true },
+    }),
+    prisma.savingsAccount.findMany({
+      select: { balance: true, currency: true },
+    }),
     fetchVWCEData(),
     prisma.expense.groupBy({
       by: ["category"],
@@ -79,14 +83,8 @@ async function getOverviewData(selectedMonth: string) {
       _sum: { amount: true },
       where: currentWindow,
     }),
-    prisma.income.findMany({
-      where: { date: { gte: sixMonthsAgo, lte: endOfMonth } },
-      select: { amount: true, date: true },
-    }),
-    prisma.expense.findMany({
-      where: { date: { gte: sixMonthsAgo, lte: endOfMonth } },
-      select: { amount: true, date: true },
-    }),
+    sumByMonth("Income", sixMonthsAgo, endOfMonth),
+    sumByMonth("Expense", sixMonthsAgo, endOfMonth),
   ]);
 
   const incomeBreakdown = { WYPLATA_1: 0, WYPLATA_2: 0, INNE: 0 };
@@ -120,37 +118,21 @@ async function getOverviewData(selectedMonth: string) {
   const portfolioValue = currentPricePln ? totalUnits * currentPricePln : totalInvested;
 
   // Savings total in PLN
-  const currencies = [...new Set(savingsAccounts.map((a) => a.currency))].filter((c) => c !== "PLN");
-  const fxRates: Record<string, number> = { PLN: 1 };
-  const rateResults = await Promise.all(
-    currencies.map(async (c) => {
-      const rate = await getFxRate(c, "PLN");
-      return [c, rate ?? 1] as [string, number];
-    })
+  const fxRates = await getFxRatesToPln(savingsAccounts.map((a) => a.currency));
+  const totalSavings = savingsAccounts.reduce(
+    (sum, acc) => sum + acc.balance * (fxRates[acc.currency] ?? 1),
+    0
   );
-  for (const [c, r] of rateResults) fxRates[c] = r;
-  const totalSavings = savingsAccounts.reduce((sum, acc) => sum + acc.balance * (fxRates[acc.currency] ?? 1), 0);
 
-  // Charts
-  const incomeByMonth = new Map<string, number>();
-  for (const item of allIncomes6m) {
-    const monthKey = `${item.date.getFullYear()}-${String(item.date.getMonth() + 1).padStart(2, "0")}`;
-    incomeByMonth.set(monthKey, (incomeByMonth.get(monthKey) || 0) + item.amount);
-  }
+  // Charts (sums grouped in SQL via sumByMonth)
+  const incomeByMonth = new Map(incomeMonthly.map((r) => [r.month, r.total]));
+  const expenseByMonth = new Map(expenseMonthly.map((r) => [r.month, r.total]));
 
-  const expenseByMonth = new Map<string, number>();
-  for (const item of allExpenses6m) {
-    const monthKey = `${item.date.getFullYear()}-${String(item.date.getMonth() + 1).padStart(2, "0")}`;
-    expenseByMonth.set(monthKey, (expenseByMonth.get(monthKey) || 0) + item.amount);
-  }
-
-  const cashflowData = last6.map((m) => {
-    return {
-      month: getMonthLabel(m),
-      income: incomeByMonth.get(m) || 0,
-      expenses: expenseByMonth.get(m) || 0,
-    };
-  });
+  const cashflowData = last6.map((m) => ({
+    month: getMonthLabel(m),
+    income: incomeByMonth.get(m) || 0,
+    expenses: expenseByMonth.get(m) || 0,
+  }));
 
   const pieData = expensesByCategory.map((e) => ({
     category: e.category,
@@ -188,73 +170,9 @@ export default async function OverviewPage({ searchParams }: Props) {
         ? params.month
         : getCurrentMonth();
   const data = await getOverviewData(selectedMonth);
-  const spendingRatio =
-    data.totalIncome > 0 ? (data.totalExpenses / data.totalIncome) * 100 : 0;
-  const savingsRatio = Math.max(0, Math.min(100, data.savingsRate));
-  const liquidityBadge =
-    data.netBalance >= 0
-      ? "Finanse pod kontrola"
-      : "Potrzebna stabilizacja";
 
   return (
     <div className="ag-page">
-      <FadeInSection>
-        <div className="ag-card">
-          <div className="ag-inline-row mb-4">
-            <p className="ag-overline">Dashboard finansowy</p>
-          </div>
-
-          <h2 className="text-[clamp(2rem,3.6vw,2.9rem)] font-semibold tracking-[-0.03em] text-white">
-            Twoj finansowy pulpit
-          </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/65">
-            Ten widok laczy dochody, wydatki, oszczednosci i inwestycje w jednym miejscu, zebys
-            szybciej reagowal na zmiany.
-          </p>
-
-          <div className="mt-5 grid w-full gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/[0.1] bg-white/[0.03] px-4 py-3">
-              <div className="flex items-center justify-between">
-                <p className="ag-overline">Saldo netto</p>
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10">
-                  <Wallet className="h-3.5 w-3.5 text-primary" />
-                </div>
-              </div>
-              <p className="mt-2 font-mono text-3xl font-semibold tracking-[-0.02em] tabular-nums text-white">
-                {formatPLN(data.netBalance)}
-              </p>
-              <p className="mt-1 text-[11px] text-white/55">{liquidityBadge}</p>
-            </div>
-
-            <div className="rounded-2xl border border-white/[0.1] bg-white/[0.03] px-4 py-3">
-              <div className="flex items-center justify-between">
-                <p className="ag-overline">Wskaznik oszczedzania</p>
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10">
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-                </div>
-              </div>
-              <p className="mt-2 font-mono text-3xl font-semibold tracking-[-0.02em] tabular-nums text-white">
-                {savingsRatio.toFixed(0)}%
-              </p>
-              <p className="mt-1 text-[11px] text-white/55">Poduszka finansowa</p>
-            </div>
-
-            <div className="rounded-2xl border border-white/[0.1] bg-white/[0.03] px-4 py-3">
-              <div className="flex items-center justify-between">
-                <p className="ag-overline">Intensywnosc wydatkow</p>
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ff8f6b]/20">
-                  <Radar className="h-3.5 w-3.5 text-[#ff8f6b]" />
-                </div>
-              </div>
-              <p className="mt-2 font-mono text-3xl font-semibold tracking-[-0.02em] tabular-nums text-white">
-                {spendingRatio.toFixed(0)}%
-              </p>
-              <p className="mt-1 text-[11px] text-white/55">Udzial kosztow</p>
-            </div>
-          </div>
-        </div>
-      </FadeInSection>
-
       <NetWorthCard
         totalSavings={data.totalSavings}
         portfolioValue={data.portfolioValue}
@@ -272,21 +190,27 @@ export default async function OverviewPage({ searchParams }: Props) {
           title="Wydatki"
           value={formatPLN(data.totalExpenses)}
           icon={<TrendingDown />}
-          trend="down"
+          tone={
+            data.expenseTrendPct === null
+              ? "neutral"
+              : data.expenseTrendPct <= 0
+                ? "good"
+                : "bad"
+          }
           subtitle={formatTrend(data.expenseTrendPct)}
         />
         <MetricCard
           title="Saldo netto"
           value={formatPLN(data.netBalance)}
           icon={<Wallet />}
-          trend={data.netBalance >= 0 ? "up" : "down"}
+          tone={data.netBalance >= 0 ? "good" : "bad"}
           subtitle={`Wskaźnik oszczędzania: ${data.savingsRate.toFixed(0)}%`}
         />
         <MetricCard
           title="Oszczędności"
           value={formatCurrency(data.totalSavings, "PLN")}
           icon={<Wallet />}
-          trend="neutral"
+          tone="neutral"
         />
       </StaggerGrid>
 

@@ -51,14 +51,48 @@ export function getMonthLabel(monthStr: string): string {
   return format(date, "LLL yyyy", { locale: pl });
 }
 
-export function getLast6Months(): string[] {
+export function getLast6Months(reference?: string): string[] {
+  let refYear: number;
+  let refMonth: number;
+  if (reference && isValidMonth(reference)) {
+    const [y, m] = reference.split("-").map(Number);
+    refYear = y;
+    refMonth = m - 1;
+  } else {
+    const now = new Date();
+    refYear = now.getFullYear();
+    refMonth = now.getMonth();
+  }
   const months: string[] = [];
-  const now = new Date();
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const d = new Date(refYear, refMonth - i, 1);
     months.push(formatMonth(d));
   }
   return months;
+}
+
+/**
+ * Parse YYYY-MM-DD into a Date at local noon, avoiding UTC-midnight
+ * timezone shifts that would flip the day backwards in negative offsets.
+ */
+export function parseLocalDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) {
+    const fallback = new Date(value);
+    return Number.isNaN(fallback.getTime()) ? null : fallback;
+  }
+  const [, y, m, d] = match;
+  const date = new Date(Number(y), Number(m) - 1, Number(d), 12, 0, 0, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function toDateInputValue(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 export const INCOME_CATEGORY_LABELS: Record<string, string> = {

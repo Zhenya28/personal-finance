@@ -9,6 +9,7 @@ import {
   LineChart,
   LogOut,
   PiggyBank,
+  ScanLine,
   TrendingDown,
   TrendingUp,
   Upload,
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/expenses", label: "Wydatki", icon: TrendingDown },
   { href: "/savings", label: "Oszczednosci", icon: PiggyBank },
   { href: "/investments", label: "Inwestycje", icon: LineChart },
+  { href: "/scan", label: "Skaner AI", icon: ScanLine },
   { href: "/import", label: "Import CSV", icon: Upload },
   { href: "/calculator", label: "Kalkulator", icon: Calculator },
 ];

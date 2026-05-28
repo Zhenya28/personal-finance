@@ -1,8 +1,5 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
-
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
@@ -17,38 +14,9 @@ const EXPENSE_CATEGORIES = [
   "OTHER",
 ] as const;
 
-export async function getCategoryRules() {
-  try {
-    return await prisma.categoryRule.findMany({
-      orderBy: { createdAt: "desc" },
-    });
-  } catch {
-    return [];
-  }
-}
-
-export async function addCategoryRule(formData: FormData) {
-  const pattern = (formData.get("pattern") as string).toLowerCase().trim();
-  const type = formData.get("type") as string;
-  const category = formData.get("category") as string;
-
-  await prisma.categoryRule.upsert({
-    where: { pattern_type: { pattern, type } },
-    update: { category },
-    create: { pattern, type, category },
-  });
-
-  revalidatePath("/import");
-}
-
-export async function deleteCategoryRule(id: string) {
-  await prisma.categoryRule.delete({ where: { id } });
-  revalidatePath("/import");
-}
-
 export interface MatchedCategory {
   category: string;
-  source: "rule" | "ai" | "heuristic" | "default";
+  source: "ai" | "heuristic" | "default";
 }
 
 interface TxToMatch {
@@ -67,17 +35,7 @@ export async function matchCategory(
   type: "income" | "expense",
   date?: string
 ): Promise<MatchedCategory> {
-  const rules = await getCategoryRules();
   const normalized = normalizeForMatch(description);
-
-  for (const rule of rules) {
-    if (
-      rule.type === type &&
-      normalized.includes(normalizeForMatch(rule.pattern))
-    ) {
-      return { category: rule.category, source: "rule" };
-    }
-  }
 
   const heuristic = inferCategoryFromText(normalized, type, date);
   if (heuristic) return { category: heuristic, source: "heuristic" };
@@ -91,13 +49,6 @@ export async function matchCategory(
 export async function matchCategoriesBulk(
   transactions: TxToMatch[]
 ): Promise<MatchedCategory[]> {
-  const rules = await getCategoryRules();
-  const normalizedRules = rules.map((r) => ({
-    type: r.type,
-    category: r.category,
-    pattern: normalizeForMatch(r.pattern),
-  }));
-
   const matched: Array<MatchedCategory | null> = Array.from(
     { length: transactions.length },
     () => null
@@ -106,15 +57,12 @@ export async function matchCategoriesBulk(
 
   transactions.forEach((tx, index) => {
     const normalized = normalizeForMatch(tx.description);
-
-    for (const rule of normalizedRules) {
-      if (rule.type === tx.type && normalized.includes(rule.pattern)) {
-        matched[index] = { category: rule.category, source: "rule" };
-        return;
-      }
+    const heuristic = inferCategoryFromText(normalized, tx.type, tx.date);
+    if (heuristic) {
+      matched[index] = { category: heuristic, source: "heuristic" };
+    } else {
+      unmatched.push({ ...tx, index, normalized });
     }
-
-    unmatched.push({ ...tx, index, normalized });
   });
 
   if (unmatched.length > 0) {
@@ -125,12 +73,6 @@ export async function matchCategoriesBulk(
 
       if (aiCategory && isCategoryAllowed(aiCategory, tx.type)) {
         matched[tx.index] = { category: aiCategory, source: "ai" };
-        continue;
-      }
-
-      const heuristic = inferCategoryFromText(tx.normalized, tx.type, tx.date);
-      if (heuristic) {
-        matched[tx.index] = { category: heuristic, source: "heuristic" };
         continue;
       }
 
@@ -322,62 +264,30 @@ function inferCategoryFromText(
 
   if (type === "income") {
     const hasSalarySignal = hasAny(normalizedDescription, [
-      "wynagrodzenie",
-      "pensja",
-      "wynagr",
-      "salary",
-      "payroll",
-      "wyplata",
-      "wplata wynagrodzenia",
-      "grupa",
-      "jobme",
-      "przelew wynagrodzenia",
-      "przelew pensji",
-      "express elixir",
+      "wynagrodzenie", "pensja", "wynagr", "salary", "payroll", "wyplata",
+      "wplata wynagrodzenia", "grupa", "jobme", "przelew wynagrodzenia",
+      "przelew pensji", "express elixir",
     ]);
     const hasEmployerSignal = hasAny(normalizedDescription, [
-      "spolka",
-      "sp z o o",
-      "spolka akcyjna",
-      "s a",
-      " sa ",
-      "ltd",
-      "llc",
-      "company",
-      "pracodawca",
+      "spolka", "sp z o o", "spolka akcyjna", "s a", " sa ", "ltd", "llc",
+      "company", "pracodawca",
     ]);
 
     if (
       hasSalarySignal ||
-      (hasEmployerSignal &&
-        hasAny(normalizedDescription, ["przelew", "express", "elixir"]))
+      (hasEmployerSignal && hasAny(normalizedDescription, ["przelew", "express", "elixir"]))
     ) {
-      if (
-        hasAny(normalizedDescription, [
-          "wyplata 2",
-          "druga wyplata",
-          "wypata 2",
-          "u 01",
-          "u 02",
-          "u 2",
-          "25 dnia",
-          "drugie wynagrodzenie",
-        ])
-      ) {
+      if (hasAny(normalizedDescription, [
+        "wyplata 2", "druga wyplata", "wypata 2", "u 01", "u 02", "u 2",
+        "25 dnia", "drugie wynagrodzenie",
+      ])) {
         return "WYPLATA_2";
       }
 
-      if (
-        hasAny(normalizedDescription, [
-          "wyplata 1",
-          "pierwsza wyplata",
-          "u 12",
-          "u 11",
-          "u 1",
-          "10 dnia",
-          "pierwsze wynagrodzenie",
-        ])
-      ) {
+      if (hasAny(normalizedDescription, [
+        "wyplata 1", "pierwsza wyplata", "u 12", "u 11", "u 1",
+        "10 dnia", "pierwsze wynagrodzenie",
+      ])) {
         return "WYPLATA_1";
       }
 
@@ -387,17 +297,10 @@ function inferCategoryFromText(
       return "WYPLATA_1";
     }
 
-    if (
-      hasAny(normalizedDescription, [
-        "blik p2p przychodzacy",
-        "przelew na telefon",
-        "zwrot",
-        "refund",
-        "cashback",
-        "odsetki",
-        "bonus",
-      ])
-    ) {
+    if (hasAny(normalizedDescription, [
+      "blik p2p przychodzacy", "przelew na telefon", "zwrot", "refund",
+      "cashback", "odsetki", "bonus",
+    ])) {
       return "INNE";
     }
 
@@ -405,141 +308,12 @@ function inferCategoryFromText(
   }
 
   const expenseHeuristics: Array<{ category: string; patterns: string[] }> = [
-    {
-      category: "RESTAURACJE",
-      patterns: [
-        "uber eats",
-        "glovo",
-        "pyszne",
-        "pizza",
-        "kebab",
-        "sushi",
-        "restaur",
-        "mcdonald",
-        "kfc",
-        "burger king",
-        "starbucks",
-        "coffee",
-        "cafe",
-      ],
-    },
-    {
-      category: "TRANSPORT",
-      patterns: [
-        "koleo",
-        "pkp",
-        "mpk",
-        "jakdojade",
-        "uber",
-        "bolt",
-        "orlen",
-        "lotos",
-        "circle k",
-        "shell",
-        "stacja paliw",
-        "autostrada",
-        "parking",
-        "flixbus",
-        "ryanair",
-        "wizzair",
-        "lot",
-        "taxi",
-      ],
-    },
-    {
-      category: "SUBSCRIPTIONS",
-      patterns: [
-        "netflix",
-        "spotify",
-        "youtube",
-        "google one",
-        "icloud",
-        "apple com bill",
-        "apple.com/bill",
-        "prime video",
-        "disney",
-        "hbo",
-        "max com",
-        "canal",
-        "chatgpt",
-        "openai",
-        "patreon",
-        "game pass",
-      ],
-    },
-    {
-      category: "MIESZKANIE",
-      patterns: [
-        "czynsz",
-        "najem",
-        "oplata",
-        "energia",
-        "tauron",
-        "pge",
-        "enea",
-        "energa",
-        "gaz",
-        "pgnig",
-        "woda",
-        "mpwik",
-        "internet",
-        "orange",
-        "play",
-        "plus",
-        "t mobile",
-        "upc",
-        "vectra",
-      ],
-    },
-    {
-      category: "ZAKUPY",
-      patterns: [
-        "zakup",
-        "zakupy",
-        "zakup przy uzyciu karty",
-        "zakup e commerce",
-        "e commerce",
-        "ecommerce",
-        "blik zakup",
-        "platnosc karta",
-        "biedronka",
-        "zabka",
-        "lidl",
-        "kaufland",
-        "auchan",
-        "carrefour",
-        "rossmann",
-        "hebe",
-        "aldi",
-        "netto",
-        "stokrotka",
-        "intermarche",
-        "frisco",
-        "pepco",
-        "apteka",
-        "drogeria",
-      ],
-    },
-    {
-      category: "FUN",
-      patterns: [
-        "allegro",
-        "amazon",
-        "temu",
-        "shein",
-        "x kom",
-        "media expert",
-        "rtv euro agd",
-        "steam",
-        "epic games",
-        "multikino",
-        "cinema",
-        "empik",
-        "booking com",
-        "airbnb",
-        "booksy",
-      ],
-    },
+    { category: "RESTAURACJE", patterns: ["uber eats", "glovo", "pyszne", "pizza", "kebab", "sushi", "restaur", "mcdonald", "kfc", "burger king", "starbucks", "coffee", "cafe"] },
+    { category: "TRANSPORT", patterns: ["koleo", "pkp", "mpk", "jakdojade", "uber", "bolt", "orlen", "lotos", "circle k", "shell", "stacja paliw", "autostrada", "parking", "flixbus", "ryanair", "wizzair", "lot", "taxi"] },
+    { category: "SUBSCRIPTIONS", patterns: ["netflix", "spotify", "youtube", "google one", "icloud", "apple com bill", "apple.com/bill", "prime video", "disney", "hbo", "max com", "canal", "chatgpt", "openai", "patreon", "game pass"] },
+    { category: "MIESZKANIE", patterns: ["czynsz", "najem", "oplata", "energia", "tauron", "pge", "enea", "energa", "gaz", "pgnig", "woda", "mpwik", "internet", "orange", "play", "plus", "t mobile", "upc", "vectra"] },
+    { category: "ZAKUPY", patterns: ["zakup", "zakupy", "zakup przy uzyciu karty", "zakup e commerce", "e commerce", "ecommerce", "blik zakup", "platnosc karta", "biedronka", "zabka", "lidl", "kaufland", "auchan", "carrefour", "rossmann", "hebe", "aldi", "netto", "stokrotka", "intermarche", "frisco", "pepco", "apteka", "drogeria"] },
+    { category: "FUN", patterns: ["allegro", "amazon", "temu", "shein", "x kom", "media expert", "rtv euro agd", "steam", "epic games", "multikino", "cinema", "empik", "booking com", "airbnb", "booksy"] },
   ];
 
   let bestCategory: string | null = null;

@@ -7,8 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Sidebar } from "./Sidebar";
 import { PullToRefresh } from "./PullToRefresh";
+import { QuickAddButton } from "./QuickAddButton";
 import { MonthFilter } from "@/components/income/MonthFilter";
 import { Suspense } from "react";
+
+const QUICK_ADD_PATHS = new Set([
+  "/",
+  "/transactions",
+  "/income",
+  "/expenses",
+]);
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/": { title: "Dashboard", subtitle: "Przeglad finansow osobistych" },
@@ -17,6 +25,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/expenses": { title: "Wydatki", subtitle: "Kontrola kosztow i kategorii" },
   "/savings": { title: "Oszczednosci", subtitle: "Poduszka finansowa i cele" },
   "/investments": { title: "Inwestycje", subtitle: "Wycena portfela i ekspozycja" },
+  "/scan": { title: "Skaner AI", subtitle: "Rozpoznawanie transakcji ze zdjec" },
   "/import": { title: "Import CSV", subtitle: "Szybkie dodawanie historii transakcji" },
   "/calculator": { title: "Kalkulator", subtitle: "Symulacje i planowanie scenariuszy" },
 };
@@ -110,6 +119,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <main>{children}</main>
         </PullToRefresh>
       </div>
+
+      {QUICK_ADD_PATHS.has(pathname) ? <QuickAddButton /> : null}
     </div>
   );
 }

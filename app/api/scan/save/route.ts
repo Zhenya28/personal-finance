@@ -2,24 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { IncomeCategory, ExpenseCategory } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { verifySession } from "@/lib/auth";
 import {
   buildTransactionSignature,
   sanitizeTransactionDescription,
 } from "@/lib/transaction-dedupe";
+import { parseLocalDate } from "@/lib/utils";
+import { INCOME_CATEGORIES, EXPENSE_CATEGORIES } from "@/lib/validation";
 
-const VALID_INCOME = ["WYPLATA_1", "WYPLATA_2", "INNE"];
-const VALID_EXPENSE = [
-  "ZAKUPY",
-  "RESTAURACJE",
-  "TRANSPORT",
-  "SUBSCRIPTIONS",
-  "MIESZKANIE",
-  "FUN",
-  "OTHER",
-];
+const VALID_INCOME = INCOME_CATEGORIES as readonly string[];
+const VALID_EXPENSE = EXPENSE_CATEGORIES as readonly string[];
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await verifySession())) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const body = await request.json();
     const { transactions, type } = body as {
       transactions: {
@@ -38,96 +37,118 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[scan/save] Saving ${transactions.length} ${type}s`);
-
     let savedCount = 0;
     let skippedDuplicates = 0;
 
+    // --- Phase 1: Pre-process all transactions in memory (zero DB calls) ---
+    const currentYear = new Date().getFullYear();
+    const processed: {
+      amount: number;
+      category: string;
+      description: string | null;
+      date: Date;
+      signature: string;
+    }[] = [];
+
     for (const t of transactions) {
-      // Use Math.abs — bank screenshots often show negative amounts for expenses
       const amount = Math.abs(Number(t.amount) || 0);
       if (amount === 0) continue;
 
-      const dateVal = t.date ? new Date(t.date) : new Date();
-      
+      const dateVal = parseLocalDate(t.date) ?? new Date();
+
       // Fix wrong year — Gemini sometimes defaults to 2024 when bank shows only day/month
-      const currentYear = new Date().getFullYear();
       if (dateVal.getFullYear() < currentYear) {
         dateVal.setFullYear(currentYear);
       }
 
       const description = sanitizeTransactionDescription(t.description) || null;
+      const cat = (t.category || "").toUpperCase();
+      const category =
+        type === "income"
+          ? VALID_INCOME.includes(cat) ? cat : "INNE"
+          : VALID_EXPENSE.includes(cat) ? cat : "OTHER";
 
-      if (type === "income") {
-        const cat = (t.category || "").toUpperCase();
-        const category = VALID_INCOME.includes(cat) ? cat : "INNE";
-        const existingSameDate = await prisma.income.findMany({
-          where: { date: dateVal },
-          select: { amount: true, category: true, description: true, date: true },
-        });
-        const signature = buildTransactionSignature({
-          amount,
-          category,
-          description,
-          date: dateVal,
-        });
-        const isDuplicate = existingSameDate.some(
-          (row) =>
-            buildTransactionSignature({
-              amount: row.amount,
-              category: row.category,
-              description: row.description,
-              date: row.date,
-            }) === signature
+      const signature = buildTransactionSignature({
+        amount,
+        category,
+        description,
+        date: dateVal,
+      });
+
+      processed.push({
+        amount: Math.round(amount * 100) / 100,
+        category,
+        description,
+        date: dateVal,
+        signature,
+      });
+    }
+
+    // --- Phase 2: Batch-fetch existing records for the date window in one query ---
+    const timestamps = processed.map((p) => p.date.getTime());
+    const minDate = timestamps.length > 0 ? new Date(Math.min(...timestamps)) : null;
+    const maxDate = timestamps.length > 0 ? new Date(Math.max(...timestamps)) : null;
+
+    const existingSignatures = new Set<string>();
+
+    if (minDate && maxDate) {
+      const existingRows = type === "income"
+        ? await prisma.income.findMany({
+            where: { date: { gte: minDate, lte: maxDate } },
+            select: { amount: true, category: true, description: true, date: true },
+          })
+        : await prisma.expense.findMany({
+            where: { date: { gte: minDate, lte: maxDate } },
+            select: { amount: true, category: true, description: true, date: true },
+          });
+
+      for (const row of existingRows) {
+        existingSignatures.add(
+          buildTransactionSignature({
+            amount: row.amount,
+            category: row.category,
+            description: row.description,
+            date: row.date,
+          })
         );
-        if (isDuplicate) {
-          skippedDuplicates++;
-          continue;
-        }
-        await prisma.income.create({
-          data: {
-            amount,
-            category: category as IncomeCategory,
-            description,
-            date: dateVal,
-          },
+      }
+    }
+
+    // --- Phase 3: Filter duplicates (against DB + within the batch itself) ---
+    const seenSignatures = new Set(existingSignatures);
+    const toInsert: typeof processed = [];
+
+    for (const p of processed) {
+      if (seenSignatures.has(p.signature)) {
+        skippedDuplicates++;
+        continue;
+      }
+      seenSignatures.add(p.signature);
+      toInsert.push(p);
+    }
+
+    // --- Phase 4: Batch insert all non-duplicate records in one query ---
+    if (toInsert.length > 0) {
+      if (type === "income") {
+        await prisma.income.createMany({
+          data: toInsert.map((p) => ({
+            amount: p.amount,
+            category: p.category as IncomeCategory,
+            description: p.description,
+            date: p.date,
+          })),
         });
       } else {
-        const cat = (t.category || "").toUpperCase();
-        const category = VALID_EXPENSE.includes(cat) ? cat : "OTHER";
-        const existingSameDate = await prisma.expense.findMany({
-          where: { date: dateVal },
-          select: { amount: true, category: true, description: true, date: true },
-        });
-        const signature = buildTransactionSignature({
-          amount,
-          category,
-          description,
-          date: dateVal,
-        });
-        const isDuplicate = existingSameDate.some(
-          (row) =>
-            buildTransactionSignature({
-              amount: row.amount,
-              category: row.category,
-              description: row.description,
-              date: row.date,
-            }) === signature
-        );
-        if (isDuplicate) {
-          skippedDuplicates++;
-          continue;
-        }
-        await prisma.expense.create({
-          data: {
-            amount,
-            category: category as ExpenseCategory,
-            description,
-            date: dateVal,
-          },
+        await prisma.expense.createMany({
+          data: toInsert.map((p) => ({
+            amount: p.amount,
+            category: p.category as ExpenseCategory,
+            description: p.description,
+            date: p.date,
+          })),
         });
       }
-      savedCount++;
+      savedCount = toInsert.length;
     }
 
     if (savedCount === 0) {
@@ -140,10 +161,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    revalidatePath("/");
-    revalidatePath(type === "income" ? "/income" : "/expenses");
-
-    console.log(`[scan/save] Saved ${savedCount} ${type}s OK`);
+    revalidatePath("/", "layout");
 
     return NextResponse.json({ saved: savedCount, skipped: skippedDuplicates });
   } catch (error) {

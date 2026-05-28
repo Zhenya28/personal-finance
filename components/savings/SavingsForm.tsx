@@ -30,9 +30,13 @@ export function SavingsForm() {
 
   const handleSubmit = (formData: FormData) => {
     startTransition(async () => {
-      await addSavingsAccount(formData);
-      toast.success("Konto dodane");
-      formRef.current?.reset();
+      const result = await addSavingsAccount(formData);
+      if (result.ok) {
+        toast.success("Konto dodane");
+        formRef.current?.reset();
+      } else {
+        toast.error(result.error);
+      }
     });
   };
 

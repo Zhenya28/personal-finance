@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,34 +38,35 @@ export function IncomeTable({ data }: { data: Income[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filtered = searchQuery
-    ? data.filter(
-        (i) =>
-          (i.description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-          i.amount.toString().includes(searchQuery)
-      )
-    : data;
+  const filtered = useMemo(
+    () =>
+      searchQuery
+        ? data.filter(
+            (i) =>
+              (i.description || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+              i.amount.toString().includes(searchQuery)
+          )
+        : data,
+    [data, searchQuery]
+  );
 
   function clearSearch() {
     setSearchQuery("");
   }
 
   async function handleDelete(id: string) {
-    try {
-      await deleteIncome(id);
-      toast.success("Usunieto przychod");
-    } catch {
-      toast.error("Wystapil blad");
-    }
+    const result = await deleteIncome(id);
+    if (result.ok) toast.success("Usunieto przychod");
+    else toast.error(result.error);
   }
 
   async function handleEdit(formData: FormData) {
-    try {
-      await editIncome(formData);
+    const result = await editIncome(formData);
+    if (result.ok) {
       toast.success("Zaktualizowano przychod");
       setEditingId(null);
-    } catch {
-      toast.error("Wystapil blad");
+    } else {
+      toast.error(result.error);
     }
   }
 

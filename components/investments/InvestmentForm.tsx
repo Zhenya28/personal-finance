@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { addInvestment, fetchVWCEData } from "@/actions/investments";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import { toDateInputValue } from "@/lib/utils";
 
 interface VWCEData {
   priceEur: number;
@@ -19,21 +20,31 @@ export function InvestmentForm() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<VWCEData | null>(null);
   const [amount, setAmount] = useState("");
-  const today = new Date().toISOString().split("T")[0];
+  const [manualPrice, setManualPrice] = useState("");
+  const today = toDateInputValue(new Date());
 
   useEffect(() => {
     fetchVWCEData().then(setData);
   }, []);
 
   const amountNum = parseFloat(amount) || 0;
-  const estimatedUnits = data && amountNum > 0 ? amountNum / data.pricePln : null;
+  const manualPriceNum = parseFloat(manualPrice) || 0;
+  const effectivePrice =
+    manualPriceNum > 0 ? manualPriceNum : data?.pricePln ?? 0;
+  const estimatedUnits =
+    effectivePrice > 0 && amountNum > 0 ? amountNum / effectivePrice : null;
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     try {
-      await addInvestment(formData);
-      toast.success("Dodano zakup inwestycji");
-      setAmount("");
+      const result = await addInvestment(formData);
+      if (result.ok) {
+        toast.success("Dodano zakup inwestycji");
+        setAmount("");
+        setManualPrice("");
+      } else {
+        toast.error(result.error);
+      }
     } catch {
       toast.error("Wystapil blad");
     } finally {
@@ -51,7 +62,7 @@ export function InvestmentForm() {
           <h3 className="font-semibold text-sm">Dodaj zakup</h3>
         </div>
         <form action={handleSubmit} className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-3 items-end">
+          <div className="grid gap-3 sm:grid-cols-4 items-end">
             <div className="space-y-1.5">
               <Label htmlFor="inv-amount" className="text-xs">Kwota (PLN)</Label>
               <Input
@@ -64,6 +75,22 @@ export function InvestmentForm() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
+                className="h-9"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="inv-price" className="text-xs">
+                Cena PLN/szt (opcj.)
+              </Label>
+              <Input
+                id="inv-price"
+                name="pricePerUnit"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder={data ? data.pricePln.toFixed(2) : "—"}
+                value={manualPrice}
+                onChange={(e) => setManualPrice(e.target.value)}
                 className="h-9"
               />
             </div>
@@ -90,6 +117,9 @@ export function InvestmentForm() {
               <span>1 szt = <span className="font-medium">{data.pricePln.toFixed(2)} PLN</span></span>
               {estimatedUnits !== null && (
                 <span>~<span className="font-medium">{estimatedUnits.toFixed(4)}</span> szt</span>
+              )}
+              {manualPriceNum > 0 && (
+                <span className="text-amber-400">cena reczna: {manualPriceNum.toFixed(2)} PLN</span>
               )}
             </div>
           )}

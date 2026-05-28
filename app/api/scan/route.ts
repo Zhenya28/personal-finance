@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifySession } from "@/lib/auth";
 
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
@@ -64,6 +65,10 @@ Przykład odpowiedzi:
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await verifySession())) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
@@ -83,10 +88,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/heic"];
+    const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
+
+    if (!ALLOWED_MIME.includes(image.type)) {
+      return NextResponse.json(
+        { error: "Dozwolone formaty: JPG, PNG, WEBP, HEIC." },
+        { status: 415 }
+      );
+    }
+
+    if (image.size > MAX_BYTES) {
+      return NextResponse.json(
+        { error: "Plik jest za duzy. Maks. 10 MB." },
+        { status: 413 }
+      );
+    }
+
     // Convert image to base64
     const bytes = await image.arrayBuffer();
     const base64 = Buffer.from(bytes).toString("base64");
-    const mimeType = image.type || "image/png";
+    const mimeType = image.type;
 
     // Call Gemini API
     const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {

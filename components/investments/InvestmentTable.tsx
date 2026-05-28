@@ -11,18 +11,14 @@ interface Investment {
   ticker: string;
   units: number;
   pricePerUnit: number;
-  commission: number;
   date: Date;
 }
 
 export function InvestmentTable({ data }: { data: Investment[] }) {
   async function handleDelete(id: string) {
-    try {
-      await deleteInvestment(id);
-      toast.success("Usunieto zakup");
-    } catch {
-      toast.error("Wystapil blad");
-    }
+    const result = await deleteInvestment(id);
+    if (result.ok) toast.success("Usunieto zakup");
+    else toast.error(result.error);
   }
 
   if (data.length === 0) {

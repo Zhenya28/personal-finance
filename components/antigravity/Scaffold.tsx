@@ -36,7 +36,7 @@ export function LabLinks() {
     ["/antigravity/dashboard", "Dashboard", "Główny widok mobilny"],
     ["/antigravity/transactions", "Transakcje", "Lista + filtry"],
     ["/antigravity/income", "Przychody", "Historia wpływów"],
-    ["/antigravity/expenses", "Wydatki", "Kategorie i recurring"],
+    ["/antigravity/expenses", "Wydatki", "Kategorie wydatków"],
     ["/antigravity/savings", "Oszczędności", "Cele i waluty"],
     ["/antigravity/investments", "Inwestycje", "Portfel i pozycje"],
     ["/antigravity/calculator", "Kalkulator", "Rozliczenia miesięczne"],

@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
-
-const SECRET = new TextEncoder().encode(
-  process.env.AUTH_SECRET || "finance-dashboard-secret-change-me"
-);
+import { AUTH_COOKIE, AUTH_SECRET } from "@/lib/auth";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -12,10 +9,9 @@ const PUBLIC_PATHS = [
   "/favicon.ico",
   "/manifest.json",
   "/icons",
-  "/sw.js",
-  "/~offline",
-  "/antigravity",
 ];
+
+const IS_DEV = process.env.NODE_ENV !== "production";
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -24,13 +20,18 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = req.cookies.get("finance-session")?.value;
+  if (pathname.startsWith("/antigravity")) {
+    if (IS_DEV) return NextResponse.next();
+    return new NextResponse("Not Found", { status: 404 });
+  }
+
+  const token = req.cookies.get(AUTH_COOKIE)?.value;
   if (!token) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
   try {
-    await jwtVerify(token, SECRET);
+    await jwtVerify(token, AUTH_SECRET);
     return NextResponse.next();
   } catch {
     return NextResponse.redirect(new URL("/login", req.url));

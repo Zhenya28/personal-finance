@@ -1,3 +1,6 @@
+"use client";
+
+import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { Landmark } from "lucide-react";
@@ -29,17 +32,19 @@ const CURRENCY_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 export function SavingsSummary({ accounts, fxRates }: SavingsSummaryProps) {
-  const byCurrency: Record<string, number> = {};
-  for (const acc of accounts) {
-    byCurrency[acc.currency] = (byCurrency[acc.currency] || 0) + acc.balance;
-  }
+  const { totalPln, currencies } = useMemo(() => {
+    const byCurrency: Record<string, number> = {};
+    for (const acc of accounts) {
+      byCurrency[acc.currency] = (byCurrency[acc.currency] || 0) + acc.balance;
+    }
 
-  const totalPln = accounts.reduce((sum, acc) => {
-    const rate = fxRates[acc.currency] ?? 1;
-    return sum + acc.balance * rate;
-  }, 0);
+    const total = accounts.reduce((sum, acc) => {
+      const rate = fxRates[acc.currency] ?? 1;
+      return sum + acc.balance * rate;
+    }, 0);
 
-  const currencies = Object.entries(byCurrency);
+    return { totalPln: total, currencies: Object.entries(byCurrency) };
+  }, [accounts, fxRates]);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

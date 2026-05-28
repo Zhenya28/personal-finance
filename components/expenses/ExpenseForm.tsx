@@ -43,10 +43,14 @@ export function ExpenseForm() {
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     try {
-      await addExpense(formData);
-      toast.success("Dodano wydatek");
+      const result = await addExpense(formData);
+      if (result.ok) {
+        toast.success("Dodano wydatek");
+      } else {
+        toast.error(result.error);
+      }
     } catch {
-      toast.error("Wystapił błąd");
+      toast.error("Wystapil blad");
     } finally {
       setLoading(false);
     }

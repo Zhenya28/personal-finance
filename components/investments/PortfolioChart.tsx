@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   AreaChart,
   Area,
@@ -13,7 +13,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Loader2 } from "lucide-react";
 
 interface ChartData {
   date: string;
@@ -32,15 +32,48 @@ const periods = [
 type Period = (typeof periods)[number]["value"];
 
 interface PortfolioChartProps {
-  dataByPeriod: Record<string, ChartData[]>;
+  initialData: ChartData[];
   ticker: string;
 }
 
-export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
+export function PortfolioChart({ initialData, ticker }: PortfolioChartProps) {
   const [period, setPeriod] = useState<Period>("1y");
-  const data = dataByPeriod[period] || [];
+  const [cache, setCache] = useState<Record<string, ChartData[]>>({ "1y": initialData });
+  const [loading, setLoading] = useState(false);
 
-  if (Object.values(dataByPeriod).every((d) => d.length === 0)) return null;
+  const data = cache[period] || [];
+
+  const fetchPeriod = useCallback(
+    async (p: Period) => {
+      setLoading(true);
+      try {
+        const res = await fetch(
+          `/api/investments/history?period=${p}&ticker=${encodeURIComponent(ticker)}`
+        );
+        if (res.ok) {
+          const json = await res.json();
+          setCache((prev) => ({ ...prev, [p]: json }));
+        }
+      } catch (e) {
+        console.error("Failed to fetch period:", e);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [ticker]
+  );
+
+  useEffect(() => {
+    if (cache[period]) return;
+    fetchPeriod(period);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period]);
+
+  const handlePeriodChange = (p: Period) => {
+    setPeriod(p);
+  };
+
+  if (initialData.length === 0 && !loading) return null;
 
   const firstPrice = data.length > 0 ? data[0].close : 0;
   const lastPrice = data.length > 0 ? data[data.length - 1].close : 0;
@@ -89,7 +122,7 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
                 variant={period === p.value ? "default" : "ghost"}
                 size="sm"
                 className="h-7 px-2 text-xs"
-                onClick={() => setPeriod(p.value)}
+                onClick={() => handlePeriodChange(p.value)}
               >
                 {p.label}
               </Button>
@@ -97,7 +130,12 @@ export function PortfolioChart({ dataByPeriod, ticker }: PortfolioChartProps) {
           </div>
         </div>
 
-        {data.length === 0 ? (
+        {loading ? (
+          <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Ladowanie danych...
+          </div>
+        ) : data.length === 0 ? (
           <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
             Brak danych dla tego okresu.
           </div>

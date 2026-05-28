@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 import { CircleDollarSign, PieChart as PieChartIcon } from "lucide-react";
@@ -25,7 +26,10 @@ export function SavingsVisuals({
   currencyData: CurrencyAllocationPoint[];
   accountData: AccountAllocationPoint[];
 }) {
-  const total = currencyData.reduce((sum, d) => sum + d.amountPln, 0);
+  const total = useMemo(
+    () => currencyData.reduce((sum, d) => sum + d.amountPln, 0),
+    [currencyData]
+  );
   const hasData = total > 0;
 
   return (

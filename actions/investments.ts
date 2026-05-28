@@ -3,39 +3,66 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getQuote, getEurPlnRate } from "@/lib/yahoo";
+import { parseAmount } from "@/lib/validation";
+import { parseLocalDate } from "@/lib/utils";
+import type { ActionResult } from "./transactions";
 
-export async function addInvestment(formData: FormData) {
-  const amountPln = parseFloat(formData.get("amount") as string);
-  const date = new Date(formData.get("date") as string);
-  const ticker = (formData.get("ticker") as string) || "VWCE.DE";
-
-  const [quote, eurPln] = await Promise.all([
-    getQuote(ticker),
-    getEurPlnRate(),
-  ]);
-
-  if (!quote || !quote.price) {
-    throw new Error("Nie udało się pobrać aktualnego kursu VWCE");
-  }
-  if (!eurPln) {
-    throw new Error("Nie udało się pobrać kursu EUR/PLN");
-  }
-
-  const pricePerUnit = quote.price * eurPln;
-  const units = amountPln / pricePerUnit;
-
-  await prisma.investment.create({
-    data: { ticker, units, pricePerUnit, commission: 0, date },
-  });
-
-  revalidatePath("/");
-  revalidatePath("/investments");
+function revalidateInvestments() {
+  revalidatePath("/", "layout");
 }
 
-export async function deleteInvestment(id: string) {
-  await prisma.investment.delete({ where: { id } });
-  revalidatePath("/");
-  revalidatePath("/investments");
+export async function addInvestment(formData: FormData): Promise<ActionResult> {
+  const amountPln = parseAmount(formData.get("amount"));
+  const date = parseLocalDate(formData.get("date") as string);
+  const tickerRaw = formData.get("ticker");
+  const ticker = typeof tickerRaw === "string" && tickerRaw.trim() ? tickerRaw.trim() : "VWCE.DE";
+  const manualPrice = parseAmount(formData.get("pricePerUnit"));
+
+  if (amountPln === null) return { ok: false, error: "Kwota musi byc dodatnia." };
+  if (!date) return { ok: false, error: "Nieprawidlowa data." };
+
+  let pricePerUnit: number;
+  if (manualPrice !== null) {
+    pricePerUnit = manualPrice;
+  } else {
+    const [quote, eurPln] = await Promise.all([getQuote(ticker), getEurPlnRate()]);
+    if (!quote?.price) {
+      return { ok: false, error: "Nie udalo sie pobrac aktualnego kursu. Podaj cene recznie." };
+    }
+    if (!eurPln) {
+      return { ok: false, error: "Nie udalo sie pobrac kursu EUR/PLN. Podaj cene recznie." };
+    }
+    pricePerUnit = quote.price * eurPln;
+  }
+
+  if (pricePerUnit <= 0) {
+    return { ok: false, error: "Cena za jednostke musi byc dodatnia." };
+  }
+
+  const units = amountPln / pricePerUnit;
+
+  try {
+    await prisma.investment.create({
+      data: { ticker, units, pricePerUnit, date },
+    });
+    revalidateInvestments();
+    return { ok: true };
+  } catch (error) {
+    console.error("addInvestment:", error);
+    return { ok: false, error: "Nie udalo sie zapisac inwestycji." };
+  }
+}
+
+export async function deleteInvestment(id: string): Promise<ActionResult> {
+  if (!id) return { ok: false, error: "Brak identyfikatora." };
+  try {
+    await prisma.investment.delete({ where: { id } });
+    revalidateInvestments();
+    return { ok: true };
+  } catch (error) {
+    console.error("deleteInvestment:", error);
+    return { ok: false, error: "Nie udalo sie usunac inwestycji." };
+  }
 }
 
 export async function fetchVWCEData(): Promise<{

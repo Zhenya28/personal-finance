@@ -117,52 +117,6 @@ export default function RootLayout({
           <AppShell>{children}</AppShell>
           <Toaster richColors position="top-center" />
         </ThemeProvider>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function () {
-                if (!('serviceWorker' in navigator)) return;
-                var enableServiceWorker = false;
-
-                function cleanupServiceWorkersAndCaches() {
-                  return navigator.serviceWorker
-                    .getRegistrations()
-                    .then(function (registrations) {
-                      return Promise.all(
-                        registrations.map(function (registration) {
-                          return registration.unregister();
-                        })
-                      );
-                    })
-                    .then(function () {
-                      if (!('caches' in window)) return;
-                      return caches.keys().then(function (keys) {
-                        return Promise.all(
-                          keys
-                            .filter(function (key) {
-                              return (
-                                key.indexOf('finance-') === 0 ||
-                                key.indexOf('finance-v') === 0
-                              );
-                            })
-                            .map(function (key) { return caches.delete(key); })
-                        );
-                      });
-                    });
-                }
-
-                window.addEventListener('load', function () {
-                  cleanupServiceWorkersAndCaches()
-                    .then(function () {
-                      if (!enableServiceWorker) return;
-                      return navigator.serviceWorker.register('/sw.js');
-                    })
-                    .catch(function () {});
-                });
-              })();
-            `,
-          }}
-        />
       </body>
     </html>
   );

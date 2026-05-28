@@ -8,6 +8,11 @@ import {
   getDateWindow,
   sanitizeTransactionDescription,
 } from "@/lib/transaction-dedupe";
+import { parseLocalDate } from "@/lib/utils";
+import {
+  EXPENSE_CATEGORIES,
+  INCOME_CATEGORIES,
+} from "@/lib/validation";
 
 interface ImportTransaction {
   date: string;
@@ -21,25 +26,39 @@ export async function bulkImportTransactions(transactions: ImportTransaction[]) 
   const incomes = transactions.filter((t) => t.type === "income");
   const expenses = transactions.filter((t) => t.type === "expense");
 
-  const preparedIncomes = incomes.map((t) => {
-    const date = new Date(t.date);
-    return {
-      amount: t.amount,
-      category: t.category as IncomeCategory,
-      description: sanitizeTransactionDescription(t.description) || null,
-      date: Number.isNaN(date.getTime()) ? new Date() : date,
-    };
-  });
+  const preparedIncomes = incomes
+    .map((t) => {
+      const date = parseLocalDate(t.date) ?? new Date();
+      const amount = Math.abs(Number(t.amount));
+      if (!Number.isFinite(amount) || amount <= 0) return null;
+      const category = (INCOME_CATEGORIES as readonly string[]).includes(t.category)
+        ? (t.category as IncomeCategory)
+        : ("INNE" as IncomeCategory);
+      return {
+        amount: Math.round(amount * 100) / 100,
+        category,
+        description: sanitizeTransactionDescription(t.description) || null,
+        date,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
 
-  const preparedExpenses = expenses.map((t) => {
-    const date = new Date(t.date);
-    return {
-      amount: t.amount,
-      category: t.category as ExpenseCategory,
-      description: sanitizeTransactionDescription(t.description) || null,
-      date: Number.isNaN(date.getTime()) ? new Date() : date,
-    };
-  });
+  const preparedExpenses = expenses
+    .map((t) => {
+      const date = parseLocalDate(t.date) ?? new Date();
+      const amount = Math.abs(Number(t.amount));
+      if (!Number.isFinite(amount) || amount <= 0) return null;
+      const category = (EXPENSE_CATEGORIES as readonly string[]).includes(t.category)
+        ? (t.category as ExpenseCategory)
+        : ("OTHER" as ExpenseCategory);
+      return {
+        amount: Math.round(amount * 100) / 100,
+        category,
+        description: sanitizeTransactionDescription(t.description) || null,
+        date,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
 
   const incomeWindow = getDateWindow(preparedIncomes.map((t) => t.date));
   const expenseWindow = getDateWindow(preparedExpenses.map((t) => t.date));
@@ -131,9 +150,6 @@ export async function bulkImportTransactions(transactions: ImportTransaction[]) 
   }
 
   revalidatePath("/", "layout");
-  revalidatePath("/income", "layout");
-  revalidatePath("/expenses", "layout");
-  revalidatePath("/transactions", "layout");
 
   return {
     imported: uniqueIncomes.length + uniqueExpenses.length,

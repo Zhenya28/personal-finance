@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MyFinance — Personal Tracker
 
-## Getting Started
+Osobisty panel do zarzadzania finansami (PWA, Next.js 16). Sledzi przychody, wydatki, oszczednosci wielowalutowe oraz inwestycje w VWCE.DE, z rozpoznawaniem transakcji ze zdjec (Gemini Vision) i importem wyciagow mBank.
 
-First, run the development server:
+UI w jezyku polskim, jednouzytkownikowa, autoryzacja jednym haslem (cookie JWT, 30 dni).
+
+## Funkcje
+
+- **Dashboard** — saldo netto, cashflow 6m, rozklad wydatkow, net worth (PLN po przeliczeniu walut)
+- **Transakcje / Przychody / Wydatki** — listy z filtrami, inline-edit, deduplikacja sygnatura `amount|category|description|date`
+- **Oszczednosci** — konta w PLN/USD/EUR/GBP/CHF, depozyty/wyplaty w transakcji atomowej (`prisma.$transaction`), suma w PLN po kursie Yahoo
+- **Inwestycje** — VWCE.DE, kwota PLN konwertowana po aktualnym EUR/PLN, P&L, DCA, wykres historyczny
+- **Skaner AI** (`/scan`) — Gemini 2.5 Flash analizuje screenshot bankowy i proponuje transakcje
+- **Import CSV** (`/import`) — parser mBank (BOM, polskie znaki, roznie formaty dat), kategoryzacja: heurystyka -> Gemini batch -> fallback
+- **Kalkulator** — rozliczenie miesiaca kuriera (stawki godzinowe, mnozniki za zamowienia, finalizacja miesiaca)
+- **Eksport** (`GET /api/export`) — streamowany JSON cala bazy z cursor-pagination
+
+## Stack
+
+- Next.js 16 (App Router, Turbopack), React 19, TypeScript 5
+- Prisma 6 + Supabase Postgres
+- shadcn/ui + Tailwind v4 (oklch) + Lucide + Framer Motion
+- Recharts 3, date-fns (locale `pl`), Sonner
+- `jose` (JWT), `yahoo-finance2`, Gemini API
+
+## Konfiguracja
 
 ```bash
+cp .env.example .env.local
+# uzupelnij DATABASE_URL, DIRECT_URL, AUTH_SECRET, AUTH_PASSWORD, GEMINI_API_KEY
+npm install
+npx prisma migrate deploy
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Komendy
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `npm run dev` — dev server
+- `npm run build` — `prisma generate` + `next build`
+- `npm run lint`
+- `npx prisma migrate dev --name <name>`
+- `npx prisma db push` — push schematu bez migracji
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Struktura
 
-## Learn More
+- `app/` — strony App Router + `app/api/*` (auth, scan, scan/save, export, investments/history, calculator/monthly)
+- `actions/` — server actions (`"use server"`) z `revalidatePath`
+- `lib/` — `prisma`, `auth` (jose + SHA256 + timingSafeEqual), `yahoo` (cache 120s/300s przez `unstable_cache`), `mbank-parser`, `transaction-dedupe`, `utils`
+- `components/{domena}/` — komponenty per sekcja, `components/ui/` to shadcn
+- `prisma/schema.prisma` — modele Income, Expense, Investment, SavingsAccount, SavingsTransaction, CalculatorMonthlyResult
+- `proxy.ts` — Next.js 16 proxy (dawniej `middleware.ts`), wymusza sesje na wszystkich trasach poza `/login`, `/api/auth`, statykami i `~offline`
 
-To learn more about Next.js, take a look at the following resources:
+## Antigravity
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`/antigravity/*` to laboratorium designu (mockupy HTML zaadaptowane do React). Dostepne **tylko w `NODE_ENV !== "production"`** — w produkcji proxy zwraca 404.

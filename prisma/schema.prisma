@@ -31,6 +31,9 @@ model Income {
   description String?
   date        DateTime
   createdAt   DateTime       @default(now())
+
+  @@index([date])
+  @@index([category, date])
 }
 
 model Expense {
@@ -40,10 +43,10 @@ model Expense {
   description String?
   date        DateTime
   createdAt   DateTime        @default(now())
+
+  @@index([date])
+  @@index([category, date])
 }
-
-
-
 
 enum Currency {
   PLN
@@ -58,38 +61,41 @@ model Investment {
   ticker       String   @default("VWCE.DE")
   units        Float
   pricePerUnit Float
-  commission   Float    @default(0)
   date         DateTime
   createdAt    DateTime @default(now())
+
+  @@index([date])
+  @@index([ticker, date])
 }
 
 model SavingsAccount {
-  id        String   @id @default(cuid())
-  name      String
-  currency  Currency @default(PLN)
-  balance   Float    @default(0)
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
+  id           String               @id @default(cuid())
+  name         String
+  currency     Currency             @default(PLN)
+  balance      Float                @default(0)
+  transactions SavingsTransaction[]
+  updatedAt    DateTime             @updatedAt
+  createdAt    DateTime             @default(now())
 }
 
-model RecurringExpense {
-  id          String          @id @default(cuid())
+enum SavingsTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+}
+
+model SavingsTransaction {
+  id          String                 @id @default(cuid())
+  accountId   String
+  account     SavingsAccount         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type        SavingsTransactionType
   amount      Float
-  category    ExpenseCategory
-  description String?
-  dayOfMonth  Int             @default(1)
-  active      Boolean         @default(true)
-  createdAt   DateTime        @default(now())
-}
+  description String                 @default("")
+  date        DateTime
+  createdAt   DateTime               @default(now())
 
-model CategoryRule {
-  id          String          @id @default(cuid())
-  pattern     String
-  type        String          @default("expense") // "expense" | "income"
-  category    String
-  createdAt   DateTime        @default(now())
-
-  @@unique([pattern, type])
+  @@index([accountId])
+  @@index([date])
+  @@index([accountId, date])
 }
 
 model CalculatorMonthlyResult {

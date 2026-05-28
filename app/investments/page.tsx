@@ -16,23 +16,18 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { FadeInSection, StaggerGrid } from "@/components/ui/motion-wrappers";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 export default async function InvestmentsPage() {
   const investments = await prisma.investment.findMany({
     orderBy: { date: "desc" },
   });
 
-  const [quote, eurPln, hist1mo, hist3mo, hist6mo, hist1y, hist2y, hist5y] =
+  const [quote, eurPln, defaultHistory] =
     await Promise.all([
       getQuote("VWCE.DE"),
       getEurPlnRate(),
-      getHistorical("VWCE.DE", "1mo"),
-      getHistorical("VWCE.DE", "3mo"),
-      getHistorical("VWCE.DE", "6mo"),
       getHistorical("VWCE.DE", "1y"),
-      getHistorical("VWCE.DE", "2y"),
-      getHistorical("VWCE.DE", "5y"),
     ]);
 
   const currentPriceEur = quote?.price ?? null;
@@ -59,34 +54,19 @@ export default async function InvestmentsPage() {
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
-  const portfolioAccum = sortedInvestments.reduce<{
-    cumulativeUnits: number;
-    cumulativeInvested: number;
-    points: { date: string; value: number; invested: number }[];
-  }>(
-    (acc, inv) => {
-      const cumulativeUnits = acc.cumulativeUnits + inv.units;
-      const cumulativeInvested =
-        acc.cumulativeInvested + inv.units * inv.pricePerUnit;
-      const priceAtTime = currentPricePln || inv.pricePerUnit;
-
-      return {
-        cumulativeUnits,
-        cumulativeInvested,
-        points: [
-          ...acc.points,
-          {
-            date: formatDate(inv.date),
-            value: Math.round(cumulativeUnits * priceAtTime * 100) / 100,
-            invested: Math.round(cumulativeInvested * 100) / 100,
-          },
-        ],
-      };
-    },
-    { cumulativeUnits: 0, cumulativeInvested: 0, points: [] }
-  );
-
-  const portfolioValueData = portfolioAccum.points;
+  const portfolioValueData: { date: string; value: number; invested: number }[] = [];
+  let cumulativeUnits = 0;
+  let cumulativeInvested = 0;
+  for (const inv of sortedInvestments) {
+    cumulativeUnits += inv.units;
+    cumulativeInvested += inv.units * inv.pricePerUnit;
+    const priceAtTime = currentPricePln || inv.pricePerUnit;
+    portfolioValueData.push({
+      date: formatDate(inv.date),
+      value: Math.round(cumulativeUnits * priceAtTime * 100) / 100,
+      invested: Math.round(cumulativeInvested * 100) / 100,
+    });
+  }
 
   if (currentPricePln && portfolioValueData.length > 0) {
     portfolioValueData.push({
@@ -112,14 +92,7 @@ export default async function InvestmentsPage() {
     };
   });
 
-  const dataByPeriod: Record<string, { date: string; close: number }[]> = {
-    "1mo": hist1mo,
-    "3mo": hist3mo,
-    "6mo": hist6mo,
-    "1y": hist1y,
-    "2y": hist2y,
-    "5y": hist5y,
-  };
+  const initialData: { date: string; close: number }[] = defaultHistory;
 
   const headlinePrice =
     currentPriceEur !== null ? `${currentPriceEur.toFixed(2)} EUR` : "Brak danych";
@@ -234,7 +207,7 @@ export default async function InvestmentsPage() {
 
       <div className="grid gap-6 xl:grid-cols-[1.06fr_0.94fr]">
         <FadeInSection delay={0.18}>
-          <PortfolioChart dataByPeriod={dataByPeriod} ticker="VWCE.DE" />
+          <PortfolioChart initialData={initialData} ticker="VWCE.DE" />
         </FadeInSection>
         <FadeInSection delay={0.24}>
           <PortfolioValueChart data={portfolioValueData} />

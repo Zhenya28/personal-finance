@@ -45,7 +45,6 @@ const expenseCategories = Object.entries(EXPENSE_CATEGORY_LABELS);
 const incomeCategories = Object.entries(INCOME_CATEGORY_LABELS);
 const SOURCE_LABELS: Record<RowCategorySource, string> = {
   ai: "AI",
-  rule: "Regula",
   heuristic: "Heurystyka",
   default: "Domyslna",
   manual: "Recznie",
@@ -104,11 +103,11 @@ export function CsvImporter() {
             acc[item.source] += 1;
             return acc;
           },
-          { ai: 0, rule: 0, heuristic: 0, default: 0 }
+          { ai: 0, heuristic: 0, default: 0 }
         );
 
         toast.success(
-          `Auto-kategoryzacja: AI ${sourceCount.ai}, reguly ${sourceCount.rule}, heurystyka ${sourceCount.heuristic}`,
+          `Auto-kategoryzacja: AI ${sourceCount.ai}, heurystyka ${sourceCount.heuristic}`,
           { id: classifyToast }
         );
       } catch {

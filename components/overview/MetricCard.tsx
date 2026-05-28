@@ -6,31 +6,33 @@ import { type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { staggerItem } from "@/lib/motion";
 
+type Trend = "up" | "down" | "neutral";
+type Tone = "good" | "bad" | "neutral";
+
 interface MetricCardProps {
   title: string;
   value: string;
   subtitle?: string;
   icon: ReactNode;
-  trend?: "up" | "down" | "neutral";
+  trend?: Trend;
+  /**
+   * Semantic color tone. Overrides trend-based coloring.
+   * Use this for metrics where "up = bad" (e.g. expenses).
+   */
+  tone?: Tone;
 }
 
-const trendConfig = {
-  up: {
-    value: "text-white",
-    bg: "bg-emerald-500/10",
-    icon: "text-emerald-400",
-  },
-  down: {
-    value: "text-white",
-    bg: "bg-red-500/10",
-    icon: "text-red-400",
-  },
-  neutral: {
-    value: "text-white",
-    bg: "bg-white/[0.06]",
-    icon: "text-white/50",
-  },
+const toneConfig: Record<Tone, { bg: string; icon: string }> = {
+  good: { bg: "bg-emerald-500/10", icon: "text-emerald-400" },
+  bad: { bg: "bg-red-500/10", icon: "text-red-400" },
+  neutral: { bg: "bg-white/[0.06]", icon: "text-white/50" },
 };
+
+function deriveTone(trend: Trend): Tone {
+  if (trend === "up") return "good";
+  if (trend === "down") return "bad";
+  return "neutral";
+}
 
 export function MetricCard({
   title,
@@ -38,8 +40,9 @@ export function MetricCard({
   subtitle,
   icon,
   trend = "neutral",
+  tone,
 }: MetricCardProps) {
-  const t = trendConfig[trend];
+  const effective = toneConfig[tone ?? deriveTone(trend)];
 
   return (
     <motion.div variants={staggerItem}>
@@ -52,19 +55,14 @@ export function MetricCard({
             <div
               className={cn(
                 "flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0",
-                t.icon,
-                t.bg
+                effective.icon,
+                effective.bg
               )}
             >
               {icon}
             </div>
           </div>
-          <p
-            className={cn(
-              "font-mono text-3xl font-semibold tracking-[-0.02em] tabular-nums",
-              t.value
-            )}
-          >
+          <p className="font-mono text-3xl font-semibold tracking-[-0.02em] tabular-nums text-white">
             {value}
           </p>
           {subtitle && (

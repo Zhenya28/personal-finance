@@ -14,7 +14,7 @@ import { DollarSign, TrendingUp, Award } from "lucide-react";
 import { Suspense } from "react";
 import { StaggerGrid } from "@/components/ui/motion-wrappers";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface Props {
   searchParams: Promise<{ month?: string }>;
@@ -29,42 +29,54 @@ export default async function IncomePage({ searchParams }: Props) {
   const startOfMonth = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
 
-  const last6 = getLast6Months();
+  const last6 = getLast6Months(selectedMonth);
   const oldestMonth = last6[0].split("-").map(Number);
   const sixMonthsAgo = new Date(oldestMonth[0], oldestMonth[1] - 1, 1);
 
-  const [incomes, allIncomes6m] = await Promise.all([
+  const [incomes, incomeByCatMonth] = await Promise.all([
     prisma.income.findMany({
       where: { date: { gte: startOfMonth, lte: endOfMonth } },
       orderBy: { date: "desc" },
+      select: {
+        id: true,
+        amount: true,
+        category: true,
+        description: true,
+        date: true,
+      },
     }),
-    prisma.income.findMany({
-      where: { date: { gte: sixMonthsAgo, lte: endOfMonth } },
-      select: { amount: true, date: true, category: true },
-    }),
+    prisma.$queryRaw<
+      { month: string; category: string; total: number | string | null }[]
+    >`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', "date"), 'YYYY-MM') AS month,
+        "category"::text AS category,
+        SUM("amount")::float AS total
+      FROM "Income"
+      WHERE "date" >= ${sixMonthsAgo} AND "date" <= ${endOfMonth}
+      GROUP BY 1, 2
+      ORDER BY 1
+    `,
   ]);
-
   const totalThisMonth = incomes.reduce((sum, i) => sum + i.amount, 0);
 
   const incomeByMonth = new Map<
     string,
     { total: number; WYPLATA_1: number; WYPLATA_2: number; INNE: number }
   >();
-  for (const entry of allIncomes6m) {
-    const monthKey = `${entry.date.getFullYear()}-${String(entry.date.getMonth() + 1).padStart(2, "0")}`;
-    const bucket = incomeByMonth.get(monthKey) || {
+  for (const entry of incomeByCatMonth) {
+    const bucket = incomeByMonth.get(entry.month) || {
       total: 0,
       WYPLATA_1: 0,
       WYPLATA_2: 0,
       INNE: 0,
     };
-
-    bucket.total += entry.amount;
-    if (entry.category === "WYPLATA_1") bucket.WYPLATA_1 += entry.amount;
-    if (entry.category === "WYPLATA_2") bucket.WYPLATA_2 += entry.amount;
-    if (entry.category === "INNE") bucket.INNE += entry.amount;
-
-    incomeByMonth.set(monthKey, bucket);
+    const amount = Number(entry.total ?? 0);
+    bucket.total += amount;
+    if (entry.category === "WYPLATA_1") bucket.WYPLATA_1 += amount;
+    if (entry.category === "WYPLATA_2") bucket.WYPLATA_2 += amount;
+    if (entry.category === "INNE") bucket.INNE += amount;
+    incomeByMonth.set(entry.month, bucket);
   }
 
   const monthlyTotals = last6.map((m) => {

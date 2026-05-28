@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -60,10 +61,44 @@ function formatTime(date: Date): string {
 }
 
 export function TransactionList({ data }: { data: Transaction[] }) {
-  const [typeFilter, setTypeFilter] = useState(TYPE_ALL);
-  const [categoryFilter, setCategoryFilter] = useState(ALL);
-  const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const [typeFilter, setTypeFilter] = useState(
+    () => searchParams.get("type") || TYPE_ALL
+  );
+  const [categoryFilter, setCategoryFilter] = useState(
+    () => searchParams.get("cat") || ALL
+  );
+  const [searchQuery, setSearchQuery] = useState(
+    () => searchParams.get("q") || ""
+  );
   const [editingKey, setEditingKey] = useState<string | null>(null);
+
+  const updateUrl = useCallback(
+    (patch: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      for (const [key, value] of Object.entries(patch)) {
+        if (value === null || value === "") params.delete(key);
+        else params.set(key, value);
+      }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      updateUrl({
+        type: typeFilter === TYPE_ALL ? null : typeFilter,
+        cat: categoryFilter === ALL ? null : categoryFilter,
+        q: searchQuery || null,
+      });
+    }, 200);
+    return () => clearTimeout(handle);
+  }, [typeFilter, categoryFilter, searchQuery, updateUrl]);
 
   const allLabels = useMemo(
     () => ({ ...EXPENSE_CATEGORY_LABELS, ...INCOME_CATEGORY_LABELS }),
@@ -117,30 +152,21 @@ export function TransactionList({ data }: { data: Transaction[] }) {
   }
 
   async function handleDelete(id: string, type: "income" | "expense") {
-    try {
-      if (type === "income") {
-        await deleteIncome(id);
-      } else {
-        await deleteExpense(id);
-      }
-      toast.success("Usunieto transakcje");
-    } catch {
-      toast.error("Wystapil blad");
-    }
+    const result =
+      type === "income" ? await deleteIncome(id) : await deleteExpense(id);
+    if (result.ok) toast.success("Usunieto transakcje");
+    else toast.error(result.error);
   }
 
   async function handleEdit(formData: FormData) {
     const type = formData.get("type");
-    try {
-      if (type === "income") {
-        await editIncome(formData);
-      } else {
-        await editExpense(formData);
-      }
+    const result =
+      type === "income" ? await editIncome(formData) : await editExpense(formData);
+    if (result.ok) {
       toast.success("Zaktualizowano transakcje");
       setEditingKey(null);
-    } catch {
-      toast.error("Wystapil blad");
+    } else {
+      toast.error(result.error);
     }
   }
 

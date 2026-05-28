@@ -8,7 +8,7 @@ Personal finance dashboard PWA built with Next.js 16 (App Router, Turbopack). Tr
 - **Database:** Prisma 6 + Supabase PostgreSQL
 - **UI:** shadcn/ui + Tailwind CSS v4 (oklch colors) + Lucide icons
 - **Charts:** Recharts 3
-- **Other:** date-fns, yahoo-finance2, Sonner (toasts)
+- **Other:** date-fns, yahoo-finance2, Sonner (toasts), Gemini 2.5 Flash (scan + CSV categorization), `jose` (JWT auth)
 
 ## Architecture Patterns
 - Server Components by default, `"use client"` only for interactivity
@@ -25,22 +25,32 @@ Personal finance dashboard PWA built with Next.js 16 (App Router, Turbopack). Tr
 - **Typography:** `tabular-nums` for numbers, `tracking-tight` for headings
 
 ## Key Files
-- `lib/utils.ts` — formatPLN, formatDate, category labels/colors
-- `lib/prisma.ts` — Prisma client singleton
-- `lib/yahoo.ts` — FX rate fetching
-- `prisma/schema.prisma` — all data models
+- `lib/utils.ts` — formatPLN, formatDate, parseLocalDate (no UTC shift), getLast6Months(ref)
+- `lib/prisma.ts` — Prisma client singleton + `sumByMonth()` raw helper
+- `lib/yahoo.ts` — cached quote/FX/historical + `getFxRatesToPln(currencies)` helper
+- `lib/auth.ts` — JWT session, rolling refresh, in-memory rate limit for login
+- `lib/validation.ts` — `parseAmount`, `parseIncomeCategory`, `parseExpenseCategory`, `parseCurrency`
+- `lib/transaction-dedupe.ts` — signature uses day-key (no time component)
+- `prisma/schema.prisma` — all data models, composite indexes on (category, date)
 - `components/ui/confirm-delete-dialog.tsx` — reusable delete confirmation
 
 ## Conventions
 - All user-facing text in **Polish**
 - No emoji in code
-- `revalidate = 0` on all pages (real-time data)
-- MonthFilter shared across pages for month selection
+- `revalidate = 60` on Prisma+Yahoo pages (`/`, `/income`, `/expenses`, `/investments`, `/savings`); `revalidate = 0` on `/transactions` and `/import`
+- MonthFilter shared across `/`, `/transactions`, `/income`, `/expenses`
 - Inline edit pattern with `editingId` state
 - Search pattern with `searchQuery` state filtering
+- All API routes guard with `verifySession()` from `lib/auth.ts`
+- `/antigravity/*` is dev-only (404 in production via `proxy.ts`)
+
+## Server actions contract
+All server actions return `ActionResult = { ok: true } | { ok: false; error: string }`.
+Clients should branch on `result.ok` and toast `result.error` on failure.
 
 ## Commands
 - `npm run dev` — development server
 - `npm run build` — production build (runs `prisma generate` first)
 - `npx prisma migrate dev --name <name>` — database migration
+- `npx prisma migrate deploy` — apply pending migrations (CI/prod)
 - `npx prisma db push` — push schema without migration

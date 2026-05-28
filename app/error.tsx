@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw, ClipboardCheck, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function GlobalError({
@@ -12,9 +12,29 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
     console.error("App runtime error:", error);
   }, [error]);
+
+  const details = [
+    error.message ? `Message: ${error.message}` : null,
+    error.digest ? `Digest: ${error.digest}` : null,
+    error.stack ? `Stack:\n${error.stack}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  async function copyDetails() {
+    try {
+      await navigator.clipboard.writeText(details);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore clipboard permission errors
+    }
+  }
 
   return (
     <div className="mx-auto flex min-h-[70vh] w-full max-w-[680px] items-center px-4 py-8">
@@ -33,9 +53,16 @@ export default function GlobalError({
           </div>
         </div>
 
-        <div className="rounded-xl border border-border/70 bg-secondary/50 p-3 text-xs text-muted-foreground">
-          Jesli problem powtarza sie czesto, odswiez aplikacje i sprawdz polaczenie.
-        </div>
+        {error.message ? (
+          <pre className="overflow-x-auto rounded-xl border border-border/70 bg-secondary/50 p-3 text-[11px] leading-relaxed text-muted-foreground">
+            {error.message}
+            {error.digest ? `\n\n[digest: ${error.digest}]` : ""}
+          </pre>
+        ) : (
+          <div className="rounded-xl border border-border/70 bg-secondary/50 p-3 text-xs text-muted-foreground">
+            Jesli problem powtarza sie czesto, odswiez aplikacje i sprawdz polaczenie.
+          </div>
+        )}
 
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <Button onClick={reset} className="gap-2">
@@ -44,6 +71,24 @@ export default function GlobalError({
           </Button>
           <Button asChild variant="outline">
             <Link href="/">Wroc do dashboardu</Link>
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={copyDetails}
+            className="gap-2"
+          >
+            {copied ? (
+              <>
+                <ClipboardCheck className="h-4 w-4" />
+                Skopiowano
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4" />
+                Skopiuj szczegoly
+              </>
+            )}
           </Button>
         </div>
       </div>

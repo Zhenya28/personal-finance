@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentMonth, formatPLN, isValidMonth } from "@/lib/utils";
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 import { ExpenseTable } from "@/components/expenses/ExpenseTable";
-import { RecurringExpenses } from "@/components/expenses/RecurringExpenses";
 import { ExpensesDailyChart } from "@/components/expenses/ExpensesDailyChart";
 import { MetricCard } from "@/components/overview/MetricCard";
 import { ExpensePieChart } from "@/components/overview/ExpensePieChart";
@@ -10,7 +9,7 @@ import { TrendingDown, Receipt, ShoppingCart } from "lucide-react";
 import { Suspense } from "react";
 import { StaggerGrid } from "@/components/ui/motion-wrappers";
 
-export const revalidate = 0;
+export const revalidate = 60;
 
 interface Props {
   searchParams: Promise<{ month?: string }>;
@@ -25,33 +24,33 @@ export default async function ExpensesPage({ searchParams }: Props) {
   const startOfMonth = new Date(year, month - 1, 1);
   const endOfMonth = new Date(year, month, 0, 23, 59, 59);
 
-  const expenses = await prisma.expense.findMany({
-    where: { date: { gte: startOfMonth, lte: endOfMonth } },
-    orderBy: { date: "desc" },
-  });
+  const dateFilter = { gte: startOfMonth, lte: endOfMonth };
 
-  // RecurringExpense table might not exist yet if DB hasn't been pushed
-  let recurringTemplates: { id: string; amount: number; category: string; description: string | null; dayOfMonth: number; active: boolean }[] = [];
-  try {
-    recurringTemplates = await prisma.recurringExpense.findMany({
-      orderBy: { dayOfMonth: "asc" },
-    });
-  } catch {
-    // Table doesn't exist yet — silently continue
-  }
+  const [expenses, aggregates, categoryData] = await Promise.all([
+    prisma.expense.findMany({
+      where: { date: dateFilter },
+      orderBy: { date: "desc" },
+      select: { id: true, amount: true, category: true, description: true, date: true },
+    }),
 
-  const totalThisMonth = expenses.reduce((sum, e) => sum + e.amount, 0);
-  const transactionCount = expenses.length;
+    prisma.expense.aggregate({
+      where: { date: dateFilter },
+      _sum: { amount: true },
+      _count: true,
+    }),
+
+    prisma.expense.groupBy({
+      by: ["category"],
+      where: { date: dateFilter },
+      _sum: { amount: true },
+    }).then((rows) =>
+      rows.map((r) => ({ category: r.category, amount: r._sum.amount ?? 0 }))
+    ),
+  ]);
+
+  const totalThisMonth = aggregates._sum.amount ?? 0;
+  const transactionCount = aggregates._count;
   const avgTransaction = transactionCount > 0 ? totalThisMonth / transactionCount : 0;
-
-  const byCategory = new Map<string, number>();
-  for (const e of expenses) {
-    byCategory.set(e.category, (byCategory.get(e.category) || 0) + e.amount);
-  }
-  const categoryData = Array.from(byCategory.entries()).map(([category, amount]) => ({
-    category,
-    amount,
-  }));
 
   const daysInMonth = endOfMonth.getDate();
   const dayRows = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -96,8 +95,6 @@ export default async function ExpensesPage({ searchParams }: Props) {
         <ExpensesDailyChart data={dailyData} />
         <ExpensePieChart data={categoryData} />
       </div>
-
-      <RecurringExpenses data={recurringTemplates} currentMonth={selectedMonth} />
 
       <Suspense>
         <ExpenseForm />

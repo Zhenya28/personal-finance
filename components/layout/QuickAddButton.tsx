@@ -76,14 +76,14 @@ export function QuickAddButton() {
   async function handleSubmit(formData: FormData) {
     setLoading(true);
     try {
-      if (type === "income") {
-        await addIncome(formData);
-        toast.success("Dodano przychod");
+      const result =
+        type === "income" ? await addIncome(formData) : await addExpense(formData);
+      if (result.ok) {
+        toast.success(type === "income" ? "Dodano przychod" : "Dodano wydatek");
+        setOpen(false);
       } else {
-        await addExpense(formData);
-        toast.success("Dodano wydatek");
+        toast.error(result.error);
       }
-      setOpen(false);
     } catch {
       toast.error("Wystapil blad");
     } finally {
